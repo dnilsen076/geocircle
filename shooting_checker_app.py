@@ -22,6 +22,15 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com)")
 
+# === FORCE OPEN IN NEW TAB (NO IFRAME) ===
+if st.button("OPEN IN FULL BROWSER (GPS WORKS HERE)", type="primary"):
+    st.markdown("""
+    <script>
+    window.open(window.location.href, '_blank');
+    </script>
+    """, unsafe_allow_html=True)
+    st.stop()
+
 # === GET GPS FROM URL ===
 query_params = st.experimental_get_query_params()
 lat = float(query_params.get("lat", [39.72009])[0])
@@ -29,7 +38,7 @@ lon = float(query_params.get("lon", [-119.92786])[0])
 
 st.success(f"Location: {lat:.5f} degrees, {lon:.5f} degrees")
 
-# === GPS BUTTON — WORKS IN IFRAME BY USING window.top ===
+# === GPS BUTTON (WORKS IN FULL BROWSER) ===
 components.html("""
 <div style="text-align:center; margin:20px;">
     <button onclick="getGPS()" style="
@@ -55,11 +64,10 @@ function getGPS() {
             (pos) => {
                 const lat = pos.coords.latitude.toFixed(5);
                 const lon = pos.coords.longitude.toFixed(5);
-                status.innerHTML = "GPS Locked — Reloading...";
-                const url = new URL(window.top.location);
+                const url = new URL(window.location);
                 url.searchParams.set('lat', lat);
                 url.searchParams.set('lon', lon);
-                window.top.location.href = url.toString();
+                window.location = url;
             },
             (err) => {
                 btn.innerHTML = "Try Again";
@@ -83,7 +91,7 @@ folium.Marker(
 ).add_to(m)
 
 st.markdown("### Your GPS Location on Map")
-st_folium(m, width=700, height=500, returned_objects=[])
+st_folium(m, width=700, height=500)
 
 # === LEGALITY CHECK ===
 @st.cache_data(ttl=300)
