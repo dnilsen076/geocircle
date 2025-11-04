@@ -20,21 +20,14 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com)")
 
-# === OFFICIAL GPS (STREAMLIT CLOUD) ===
-location = st.location
+# === DEFAULT LOCATION ===
+DEFAULT_LAT = 39.72009
+DEFAULT_LON = -119.92786
 
-if location and location.get("latitude") and location.get("longitude"):
-    lat = location["latitude"]
-    lon = location["longitude"]
-    st.success(f"GPS Locked: {lat:.5f}°, {lon:.5f}°")
-else:
-    lat = 39.72009  # Safe zone
-    lon = -119.92786
-    st.info("Tap below to enable GPS")
-
-# === GPS BUTTON ===
-if st.button("Get My GPS Location", type="primary"):
-    st.rerun()  # Triggers location prompt
+# === READ GPS FROM URL ===
+query_params = st.experimental_get_query_params()
+lat = float(query_params.get("lat", [DEFAULT_LAT])[0])
+lon = float(query_params.get("lon", [DEFAULT_LON])[0])
 
 # === BUILDING CHECK ===
 @st.cache_data(ttl=300)
@@ -57,6 +50,58 @@ def get_nearest_building(lat, lon):
         except:
             continue
     return None
+
+# === GPS BUTTON — WORKS IN TOP WINDOW (NO IFRAME) ===
+components.html(f"""
+<div style="text-align:center; margin:30px 0;">
+    <button id="gps-btn" style="
+        width:90%; max-width:400px;
+        background:#007bff; color:white; 
+        padding:18px; border:none; border-radius:12px; 
+        font-size:18px; font-weight:bold; cursor:pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    ">
+        Get My GPS Location
+    </button>
+    <p id="status" style="margin-top:10px; font-size:15px; color:#555;"></p>
+</div>
+
+<script>
+(function() {{
+    const btn = document.getElementById('gps-btn');
+    const status = document.getElementById('status');
+    
+    btn.onclick = function() {{
+        btn.innerHTML = "Getting Location...";
+        status.innerHTML = "";
+        
+        if (navigator.geolocation) {{
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {{
+                    const lat = pos.coords.latitude.toFixed(5);
+                    const lon = pos.coords.longitude.toFixed(5);
+                    const url = new URL(window.top.location);
+                    url.searchParams.set('lat', lat);
+                    url.searchParams.set('lon', lon);
+                    window.top.location.href = url.toString();
+                }},
+                (err) => {{
+                    btn.innerHTML = "Try Again";
+                    status.innerHTML = "Failed. Tap to retry.";
+                }},
+                {{enableHighAccuracy: true, timeout: 15000}}
+            );
+        }} else {{
+            status.innerHTML = "GPS not supported";
+            btn.innerHTML = "Try Again";
+        }}
+    }};
+}})();
+</script>
+""", height=140)
+
+# === SHOW CURRENT LOCATION ===
+st.markdown(f"**Current Location:** `{lat:.5f}°, {lon:.5f}°`")
 
 # === CHECK BUTTON ===
 if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
