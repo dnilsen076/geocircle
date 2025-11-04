@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_geolocation import geolocator
 import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
@@ -21,21 +20,35 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com/operations_bureau/patrol-division/congested-areafirearms-discharge-maps.php)")
 
-# === GPS BUTTON ===
+# === GPS BUTTON (SIMPLE JS — TESTED) ===
 if st.button("📍 Get My GPS Location", type="primary"):
-    st.session_state.gps = geolocator(key="get_location")
+    components.html("""
+    <script>
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+                window.parent.location.search = '?lat=' + lat + '&lon=' + lon;
+            },
+            function(error) {
+                alert('GPS Error: ' + error.message);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+    } else {
+        alert('GPS not supported');
+    }
+    </script>
+    <p>Requesting location... Grant permission in browser.</p>
+    """, height=80)
+    st.rerun()
 
-if 'gps' not in st.session_state:
-    st.session_state.gps = None
-
-if st.session_state.gps:
-    lat = st.session_state.gps['latitude']
-    lon = st.session_state.gps['longitude']
-    st.success(f"✅ GPS Locked: {lat:.5f}°, {lon:.5f}°")
-else:
-    lat = 39.72009  # Safe zone fallback
-    lon = -119.92786
-    st.warning("👆 Tap above to enable GPS (grant permission)")
+# === GET LOCATION FROM URL ===
+query_params = st.experimental_get_query_params()
+lat = float(query_params.get("lat", [39.72009])[0])
+lon = float(query_params.get("lon", [-119.92786])[0])
+st.info(f"Current Location: {lat:.5f}°, {lon:.5f}°")
 
 @st.cache_data(ttl=300)
 def get_nearest_building(lat, lon):
