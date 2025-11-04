@@ -3,20 +3,19 @@ import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
 
-# === SESSION STATE: PERSIST GPS ===
+# === CORRECT SESSION STATE INIT ===
 if 'lat' not in st.session_state:
     st.session_state.lat = 39.72009
-if 'lon' not in st.session_state.lon:
+if 'lon' not in st.session_state:
     st.session_state.lon = -119.92786
 
-# === READ GPS FROM URL (AFTER JS UPDATE) ===
+# === READ GPS FROM URL (NO REVERT) ===
 query_params = st.experimental_get_query_params()
 if "gps_lat" in query_params and "gps_lon" in query_params:
     try:
         st.session_state.lat = float(query_params["gps_lat"][0])
         st.session_state.lon = float(query_params["gps_lon"][0])
-        # Clear URL after use
-        st.experimental_set_query_params()
+        st.experimental_set_query_params()  # Clear URL
     except:
         pass
 
@@ -58,8 +57,8 @@ def get_nearest_building(lat, lon):
             continue
     return None
 
-# === GPS BUTTON: WRITES TO URL → PYTHON READS IT ===
-components.html(f"""
+# === GPS BUTTON: WRITES TO URL ===
+components.html("""
 <button id="gps-btn" onclick="getLocation()" style="
     width:100%; 
     background:#007bff; 
@@ -76,73 +75,56 @@ Get My GPS Location
 </button>
 
 <script>
-function getLocation() {{
+function getLocation() {
     const btn = document.getElementById('gps-btn');
     btn.innerHTML = "Getting Location...";
     btn.disabled = true;
 
-    if (navigator.geolocation) {{
+    if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            (pos) => {{
+            (pos) => {
                 const lat = pos.coords.latitude.toFixed(5);
                 const lon = pos.coords.longitude.toFixed(5);
-                // UPDATE URL → Python reads it
                 const url = new URL(window.parent.location);
                 url.searchParams.set('gps_lat', lat);
                 url.searchParams.set('gps_lon', lon);
                 window.parent.location = url;
-            }},
-            (err) => {{
+            },
+            (err) => {
                 btn.innerHTML = "GPS Failed — Try Again";
                 btn.disabled = false;
                 alert("GPS Error: " + err.message);
-            }},
-            {{enableHighAccuracy: true, timeout: 10000}}
+            },
+            {enableHighAccuracy: true, timeout: 10000}
         );
-    }} else {{
+    } else {
         btn.innerHTML = "GPS Not Supported";
         btn.disabled = false;
-    }}
-}}
+    }
+}
 </script>
 """, height=80)
 
 # === INPUTS: CONTROLLED BY SESSION STATE ===
 col1, col2 = st.columns(2)
-with col1:
-    lat = st.number_input(
-        "Lat", 
-        value=st.session_state.lat, 
-        step=0.0001, 
-        format="%.5f",
-        key="lat"  # Forces controlled component
-    )
-with col2:
-    lon = st.number_input(
-        "Lon", 
-        value=st.session_state.lon, 
-        step=0.0001, 
-        format="%.5f",
-        key="lon"
-    )
+lat = col1.number_input("Lat", value=st.session_state.lat, step=0.0001, format="%.5f", key="lat")
+lon = col2.number_input("Lon", value=st.session_state.lon, step=0.0001, format="%.5f", key="lon")
 
-# === SYNC INPUTS BACK TO SESSION STATE ===
+# === SYNC BACK ===
 st.session_state.lat = lat
 st.session_state.lon = lon
 
-# === CHECK BUTTON ===
+# === CHECK ===
 if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
     with st.spinner("Scanning buildings..."):
         dist_ft = get_nearest_building(lat, lon)
 
     st.markdown(f"### **Results: {lat:.5f}° N, {lon:.5f}° W**")
 
-    # MAP
     st.markdown("### 1. **Congested Areas** (You Are Pinned)")
     map_url = f"https://gis.washoecounty.us/wrms/firearm?center={lat},{lon}&zoom=15"
     components.iframe(map_url, height=500)
 
-    # DISTANCE
     if dist_ft is None:
         st.success("### 2. **Distance** — **REMOTE AREA** → **Likely Legal**")
     else:
