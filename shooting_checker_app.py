@@ -3,25 +3,25 @@ import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Washoe Safe Shot", page_icon="🎯", layout="centered")
+st.set_page_config(page_title="Washoe Safe Shot", page_icon="Target", layout="centered")
 
-st.title("🎯 **Washoe Safe Shot**")
+st.title("Target **Washoe Safe Shot**")
 st.markdown("**Official-Style Safety Tool** | **Built w/ Grok xAI** | **USMC Vet Project**")
 st.markdown("**[Washoe County Code 50](https://www.washoecounty.gov/clerks/cco/code/Chapter050.pdf)**")
 
 # Sidebar
 with st.sidebar:
-    st.header("⚖️ **EXACT Rules**")
+    st.header("Rules **Rules**")
     st.markdown("""
     - **Rifles/Pistols**: >**5,000 ft** from dwellings
     - **Shotguns/BB/Air**: >**1,000 ft** from dwellings  
     - **NO**: Congested areas, roads, parks
     - **Report**: 775-785-9276
     """)
-    st.markdown("[Sheriff's Page](https://www.washoesheriff.com/operations_bureau/patrol-division/congested-areafirearms-discharge-maps.php)")
+    st.markdown("[Sheriff's Page](https://www.washoesheriff.com)")
 
-# === OPEN IN NEW TAB (BYPASS IFRAME) ===
-if st.button("📱 **OPEN IN FULL BROWSER (GPS Works Here)**", type="primary"):
+# === OPEN IN FULL BROWSER ===
+if st.button("OPEN IN FULL BROWSER (GPS Works Here)", type="primary"):
     st.write("""
     <script>
     window.open(window.location.href, '_blank');
@@ -34,10 +34,10 @@ query_params = st.experimental_get_query_params()
 lat = float(query_params.get("lat", [39.72009])[0])
 lon = float(query_params.get("lon", [-119.92786])[0])
 
-st.success(f"📍 GPS Locked: {lat:.5f}°, {lon:.5f}°")
+st.success(f"GPS Locked: {lat:.5f} degrees, {lon:.5f} degrees")
 
-# === GPS BUTTON (ONLY IN FULL BROWSER) ===
-components.html(f"""
+# === GPS BUTTON (NO F-STRING) ===
+components.html("""
 <div style="text-align:center; margin:20px;">
     <button onclick="getGPS()" style="
         width:90%; max-width:400px;
@@ -45,7 +45,7 @@ components.html(f"""
         padding:18px; border:none; border-radius:12px; 
         font-size:18px; font-weight:bold; cursor:pointer;
     ">
-        📍 Get My GPS Location
+        Get My GPS Location
     </button>
     <p id="status" style="margin-top:10px; color:#555;"></p>
 </div>
@@ -97,11 +97,11 @@ def get_nearest_building(lat, lon):
     except:
         return None
 
-if st.button("**CHECK LEGALITY NOW** 🎯", type="primary"):
-    with st.spinner("🔍 Scanning..."):
+if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
+    with st.spinner("Scanning..."):
         dist_ft = get_nearest_building(lat, lon)
 
-    st.markdown(f"### **Results: {lat:.5f}° N, {lon:.5f}° W**")
+    st.markdown(f"### **Results: {lat:.5f} degrees N, {lon:.5f} degrees W**")
 
     st.markdown("### 1. **Congested Areas** (You Are Pinned)")
     map_url = f"https://gis.washoecounty.us/wrms/firearm?center={lat},{lon}&zoom=15"
@@ -112,10 +112,10 @@ if st.button("**CHECK LEGALITY NOW** 🎯", type="primary"):
     else:
         st.metric("**Nearest Dwelling**", f"{dist_ft:,} ft")
         if dist_ft > 5000:
-            st.success("**🎯 LEGAL: Rifles/Pistols/ALL**")
+            st.success("**LEGAL: Rifles/Pistols/ALL**")
         elif dist_ft > 1000:
-            st.info("**🔫 LEGAL: Shotguns/BB/Air Rifles ONLY**")
+            st.info("**LEGAL: Shotguns/BB/Air Rifles ONLY**")
         else:
-            st.error("**🚫 ILLEGAL — TOO CLOSE!**")
+            st.error("**ILLEGAL — TOO CLOSE!**")
 
     st.success("**SAFE TO SHOOT** (if map green) | Not legal advice")
