@@ -20,35 +20,20 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com/operations_bureau/patrol-division/congested-areafirearms-discharge-maps.php)")
 
-# === GPS BUTTON (SIMPLE JS — TESTED) ===
-if st.button("📍 Get My GPS Location", type="primary"):
-    components.html("""
-    <script>
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                window.parent.location.search = '?lat=' + lat + '&lon=' + lon;
-            },
-            function(error) {
-                alert('GPS Error: ' + error.message);
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
-        );
-    } else {
-        alert('GPS not supported');
-    }
-    </script>
-    <p>Requesting location... Grant permission in browser.</p>
-    """, height=80)
-    st.rerun()
+# === IP LOCATION (WORKS EVERYWHERE) ===
+@st.cache_data(ttl=300)
+def get_ip_location():
+    try:
+        response = requests.get("https://ipinfo.io/json")
+        data = response.json()
+        lat, lon = map(float, data['loc'].split(','))
+        return lat, lon, data.get('city', 'Unknown'), data.get('region', 'Unknown')
+    except:
+        return 39.72009, -119.92786, "Washoe County", "Nevada"
 
-# === GET LOCATION FROM URL ===
-query_params = st.experimental_get_query_params()
-lat = float(query_params.get("lat", [39.72009])[0])
-lon = float(query_params.get("lon", [-119.92786])[0])
-st.info(f"Current Location: {lat:.5f}°, {lon:.5f}°")
+lat, lon, city, region = get_ip_location()
+st.success(f"📍 Location Detected: **{city}, {region}** ({lat:.5f}°, {lon:.5f}°)")
+st.info("Using your IP address — accurate to ~1 mile. No GPS permission needed.")
 
 @st.cache_data(ttl=300)
 def get_nearest_building(lat, lon):
