@@ -3,6 +3,7 @@ import folium
 from streamlit_folium import st_folium
 import requests
 from geopy.distance import geodesic
+import streamlit.components.v1 as components
 
 st.set_page_config(page_title="Washoe Safe Shot", page_icon="Target", layout="centered")
 
@@ -21,15 +22,15 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com)")
 
-# === GET GPS FROM URL (FROM JS BUTTON) ===
+# === GET GPS FROM URL ===
 query_params = st.experimental_get_query_params()
 lat = float(query_params.get("lat", [39.72009])[0])
 lon = float(query_params.get("lon", [-119.92786])[0])
 
 st.success(f"GPS Locked: {lat:.5f} degrees, {lon:.5f} degrees")
 
-# === GPS BUTTON (JS IN PYTHON STRING) ===
-components.html(f"""
+# === GPS BUTTON (NO F-STRING) ===
+components.html("""
 <div style="text-align:center; margin:20px;">
     <button onclick="getGPS()" style="
         width:90%; max-width:400px;
@@ -43,47 +44,42 @@ components.html(f"""
 </div>
 
 <script>
-function getGPS() {{
+function getGPS() {
     const btn = document.querySelector('button');
     const status = document.getElementById('status');
     btn.innerHTML = "Getting Location...";
     status.innerHTML = "";
 
-    if (navigator.geolocation) {{
+    if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-            (pos) => {{
+            (pos) => {
                 const lat = pos.coords.latitude.toFixed(5);
                 const lon = pos.coords.longitude.toFixed(5);
                 const url = new URL(window.top.location);
                 url.searchParams.set('lat', lat);
                 url.searchParams.set('lon', lon);
                 window.top.location = url;
-            }},
-            (err) => {{
+            },
+            (err) => {
                 btn.innerHTML = "Try Again";
                 status.innerHTML = "Failed: " + err.message;
-            }},
-            {{enableHighAccuracy: true, timeout: 15000}}
+            },
+            {enableHighAccuracy: true, timeout: 15000}
         );
-    }} else {{
+    } else {
         status.innerHTML = "GPS not supported";
-    }}
-}}
+    }
+}
 </script>
 """, height=140)
 
 # === MAP WITH GPS PIN ===
-m = folium.Map(location=[lat, lon], zoom_start=16, tiles="OpenStreetMap")
-folium.Marker(
-    [lat, lon],
-    popup="<b>You are here</b>",
-    tooltip="Your Location"
-).add_to(m)
+m = folium.Map(location=[lat, lon], zoom_start=16)
+folium.Marker([lat, lon], popup="You are here").add_to(m)
+st.markdown("### Your Location")
+st_folium(m, width=700, height=500)
 
-st.markdown("### Your Location on Map")
-map_data = st_folium(m, width=700, height=500)
-
-# === BUILDING CHECK ===
+# === CHECK BUILDING DISTANCE ===
 @st.cache_data(ttl=300)
 def get_nearest_building(lat, lon):
     overpass_url = "http://overpass-api.de/api/interpreter"
@@ -105,10 +101,8 @@ if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
     with st.spinner("Scanning..."):
         dist_ft = get_nearest_building(lat, lon)
 
-    st.markdown(f"### **Results: {lat:.5f} degrees N, {lon:.5f} degrees W**")
-
     if dist_ft is None:
-        st.success("### 2. **Distance** — **REMOTE AREA** → **Likely Legal**")
+        st.success("**REMOTE AREA** — Likely Legal")
     else:
         st.metric("**Nearest Dwelling**", f"{dist_ft:,} ft")
         if dist_ft > 5000:
@@ -117,5 +111,3 @@ if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
             st.info("**LEGAL: Shotguns/BB/Air Rifles ONLY**")
         else:
             st.error("**ILLEGAL — TOO CLOSE!**")
-
-    st.success("**SAFE TO SHOOT** (if map green) | Not legal advice")
