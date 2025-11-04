@@ -3,6 +3,23 @@ import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
 
+# === SESSION STATE: PERSIST GPS ===
+if 'lat' not in st.session_state:
+    st.session_state.lat = 39.72009
+if 'lon' not in st.session_state.lon:
+    st.session_state.lon = -119.92786
+
+# === READ GPS FROM URL (AFTER JS UPDATE) ===
+query_params = st.experimental_get_query_params()
+if "gps_lat" in query_params and "gps_lon" in query_params:
+    try:
+        st.session_state.lat = float(query_params["gps_lat"][0])
+        st.session_state.lon = float(query_params["gps_lon"][0])
+        # Clear URL after use
+        st.experimental_set_query_params()
+    except:
+        pass
+
 st.set_page_config(page_title="Washoe Safe Shot", page_icon="Target", layout="centered")
 
 st.title("Target **Washoe Safe Shot**")
@@ -22,85 +39,119 @@ with st.sidebar:
 
 @st.cache_data(ttl=300)
 def get_nearest_building(lat, lon):
-    overpass_url = "http://overpass-api.de/api/interpreter"
-    query = f'[out:json][timeout:25];(way["building"](around:20000,{lat},{lon}););out center;'
-    try:
-        r = requests.get(overpass_url, params={'data': query})
-        r.raise_for_status()
-        data = r.json()
-        min_dist = float('inf')
-        for el in data.get('elements', []):
-            if 'center' in el:
-                dist = geodesic((lat, lon), (el['center']['lat'], el['center']['lon'])).meters
-                min_dist = min(min_dist, dist)
-        return round(min_dist * 3.28084) if min_dist != float('inf') else None
-    except Exception as e:
-        st.error(f"Map API error: {e}")
-        return None
+    overpass_url = "http://overpass.osm.rambler.ru/cgi/interpreter"
+    radii = [5000, 10000, 20000]
+    for radius in radii:
+        query = f'[out:json][timeout:20];(way["building"](around:{radius},{lat},{lon}););out center;'
+        try:
+            r = requests.get(overpass_url, params={'data': query}, timeout=10)
+            r.raise_for_status()
+            data = r.json()
+            min_dist = float('inf')
+            for el in data.get('elements', []):
+                if 'center' in el:
+                    dist = geodesic((lat, lon), (el['center']['lat'], el['center']['lon'])).meters
+                    min_dist = min(min_dist, dist)
+            if min_dist != float('inf'):
+                return round(min_dist * 3.28084)
+        except:
+            continue
+    return None
 
-# GPS BUTTON (FIXED — Works on Mobile!)
-components.html("""
-<script>
-function getLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(showPosition, showError, {enableHighAccuracy: true});
-    } else {
-        alert("GPS not supported");
-    }
-}
-function showPosition(position) {
-    const lat = position.coords.latitude;
-    const lon = position.coords.longitude;
-    // Update Streamlit inputs
-    const inputs = parent.document.querySelectorAll('input[step="0.0001"]');
-    if (inputs.length >= 2) {
-        inputs[0].value = lat;
-        inputs[1].value = lon;
-        // Trigger update
-        const event = new Event('input', { bubbles: true });
-        inputs[0].dispatchEvent(event);
-        inputs[1].dispatchEvent(event);
-        // Click button
-        setTimeout(() => {
-            parent.document.querySelector('button[kind="primary"]').click();
-        }, 500);
-    }
-}
-function showError(error) {
-    alert("GPS Error: " + error.message);
-}
-</script>
-<button onclick="getLocation()" style="width:100%; background:#007bff; color:white; padding:14px; border:none; border-radius:8px; font-size:16px; cursor:pointer; margin:10px 0;">
+# === GPS BUTTON: WRITES TO URL → PYTHON READS IT ===
+components.html(f"""
+<button id="gps-btn" onclick="getLocation()" style="
+    width:100%; 
+    background:#007bff; 
+    color:white; 
+    padding:14px; 
+    border:none; 
+    border-radius:8px; 
+    font-size:16px; 
+    cursor:pointer; 
+    margin:10px 0;
+    font-weight:bold;
+">
 Get My GPS Location
 </button>
+
+<script>
+function getLocation() {{
+    const btn = document.getElementById('gps-btn');
+    btn.innerHTML = "Getting Location...";
+    btn.disabled = true;
+
+    if (navigator.geolocation) {{
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {{
+                const lat = pos.coords.latitude.toFixed(5);
+                const lon = pos.coords.longitude.toFixed(5);
+                // UPDATE URL → Python reads it
+                const url = new URL(window.parent.location);
+                url.searchParams.set('gps_lat', lat);
+                url.searchParams.set('gps_lon', lon);
+                window.parent.location = url;
+            }},
+            (err) => {{
+                btn.innerHTML = "GPS Failed — Try Again";
+                btn.disabled = false;
+                alert("GPS Error: " + err.message);
+            }},
+            {{enableHighAccuracy: true, timeout: 10000}}
+        );
+    }} else {{
+        btn.innerHTML = "GPS Not Supported";
+        btn.disabled = false;
+    }}
+}}
+</script>
 """, height=80)
 
-# DEFAULT: YOUR SAFE ZONE
+# === INPUTS: CONTROLLED BY SESSION STATE ===
 col1, col2 = st.columns(2)
-lat = col1.number_input("Lat", value=39.72009, step=0.0001, format="%.5f")
-lon = col2.number_input("Lon", value=-119.92786, step=0.0001, format="%.5f")
+with col1:
+    lat = st.number_input(
+        "Lat", 
+        value=st.session_state.lat, 
+        step=0.0001, 
+        format="%.5f",
+        key="lat"  # Forces controlled component
+    )
+with col2:
+    lon = st.number_input(
+        "Lon", 
+        value=st.session_state.lon, 
+        step=0.0001, 
+        format="%.5f",
+        key="lon"
+    )
 
+# === SYNC INPUTS BACK TO SESSION STATE ===
+st.session_state.lat = lat
+st.session_state.lon = lon
+
+# === CHECK BUTTON ===
 if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
     with st.spinner("Scanning buildings..."):
         dist_ft = get_nearest_building(lat, lon)
 
-    st.markdown(f"### **Results: {lat:.5f}, {lon:.5f}**")
+    st.markdown(f"### **Results: {lat:.5f}° N, {lon:.5f}° W**")
 
-    # EMBEDDED MAP WITH PIN
-    st.markdown("### 1. **Congested Areas Map** (You Are Pinned)")
-    map_url = f"https://gis.washoecounty.us/wrms/firearm?lat={lat}&lon={lon}&zoom=15"
-    components.iframe(map_url, height=500, scrolling=True)
+    # MAP
+    st.markdown("### 1. **Congested Areas** (You Are Pinned)")
+    map_url = f"https://gis.washoecounty.us/wrms/firearm?center={lat},{lon}&zoom=15"
+    components.iframe(map_url, height=500)
 
-    # DISTANCE RESULT
+    # DISTANCE
     if dist_ft is None:
-        st.success("### 2. **Distance**: NO BUILDINGS NEARBY")
+        st.success("### 2. **Distance** — **REMOTE AREA** → **Likely Legal**")
     else:
         st.metric("**Nearest Dwelling**", f"{dist_ft:,} ft")
         if dist_ft > 5000:
-            st.success("**LEGAL**: Rifles/Pistols/ALL Firearms")
+            st.success("**LEGAL: Rifles/Pistols/ALL**")
         elif dist_ft > 1000:
-            st.info("**LEGAL**: Shotguns/BB/Air Rifles **ONLY**")
+            st.info("**LEGAL: Shotguns/BB/Air Rifles ONLY**")
         else:
-            st.error("**ILLEGAL** - TOO CLOSE!")
+            st.error("**ILLEGAL — TOO CLOSE!**")
 
-    st.success("**SAFE TO SHOOT** (if map shows green) | Not legal advice")
+    st.success("**SAFE TO SHOOT** (if map green) | Not legal advice")
