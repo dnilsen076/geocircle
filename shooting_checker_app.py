@@ -8,14 +8,18 @@ if 'lat' not in st.session_state:
     st.session_state.lat = 39.72009
 if 'lon' not in st.session_state:
     st.session_state.lon = -119.92786
+if 'gps_status' not in st.session_state:
+    st.session_state.gps_status = "Tap to get location"
 
-# === READ FROM URL ===
+# === READ GPS FROM URL ===
 query_params = st.experimental_get_query_params()
-if "gps_lat" in query_params and "gps_lon" in query_params:
+if "lat" in query_params and "lon" in query_params:
     try:
-        st.session_state.lat = float(query_params["gps_lat"][0])
-        st.session_state.lon = float(query_params["gps_lon"][0])
-        st.experimental_set_query_params()
+        st.session_state.lat = float(query_params["lat"][0])
+        st.session_state.lon = float(query_params["lon"][0])
+        st.session_state.gps_status = f"Locked: {st.session_state.lat:.5f}°, {st.session_state.lon:.5f}°"
+        st.experimental_set_query_params()  # Clear
+        st.rerun()
     except:
         pass
 
@@ -27,7 +31,7 @@ st.markdown("**[Washoe County Code 50](https://www.washoecounty.gov/clerks/cco/c
 
 # Sidebar
 with st.sidebar:
-    st.header("Rules **EXACT Rules**")
+    st.header("Rules **Rules**")
     st.markdown("""
     - **Rifles/Pistols**: >**5,000 ft** from dwellings
     - **Shotguns/BB/Air**: >**1,000 ft** from dwellings  
@@ -57,77 +61,59 @@ def get_nearest_building(lat, lon):
             continue
     return None
 
-# === GPS BUTTON: OPENS POPUP (BYPASSES IFRAME) ===
-gps_script = """
+# === GPS BUTTON — PURE HTML/JS, TOP-LEVEL ===
+components.html(f"""
 <div style="text-align:center; margin:30px 0;">
-    <button id="gps-btn" onclick="openGPSPopup()" style="
+    <button id="gps-btn" style="
         width:90%; max-width:400px;
         background:#007bff; color:white; 
         padding:18px; border:none; border-radius:12px; 
         font-size:18px; font-weight:bold; cursor:pointer;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     ">
-        Get My GPS Location
+        {st.session_state.gps_status}
     </button>
-    <p id="status" style="margin-top:15px; font-size:15px; color:#555;"></p>
+    <p id="status" style="margin-top:10px; font-size:14px; color:#666;"></p>
 </div>
 
 <script>
-let popup = null;
-
-function openGPSPopup() {
+(function() {{
     const btn = document.getElementById('gps-btn');
     const status = document.getElementById('status');
-    btn.innerHTML = "Opening...";
-    status.innerHTML = "";
-
-    // Open popup in top window
-    popup = window.open('', 'gps_popup', 'width=400,height=300');
-    if (!popup) {
-        status.innerHTML = "Popup blocked. Allow popups.";
-        btn.innerHTML = "Try Again";
-        return;
-    }
-
-    popup.document.write(`
-        <html><head><title>GPS</title></head><body style="font-family:Arial;text-align:center;padding:20px;">
-        <h3>Getting Location...</h3>
-        <p id="msg">Please wait...</p>
-        <script>
-        if (navigator.geolocation) {
+    
+    btn.onclick = function() {{
+        btn.innerHTML = "Getting Location...";
+        status.innerHTML = "";
+        
+        if (navigator.geolocation) {{
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
+                (pos) => {{
                     const lat = pos.coords.latitude.toFixed(5);
                     const lon = pos.coords.longitude.toFixed(5);
-                    const url = new URL(opener.location);
-                    url.searchParams.set('gps_lat', lat);
-                    url.searchParams.set('gps_lon', lon);
-                    opener.location = url;
-                    document.getElementById('msg').innerHTML = 'Success! Closing...';
-                    setTimeout(() => window.close(), 1000);
-                },
-                (err) => {
-                    document.getElementById('msg').innerHTML = 'Failed: ' + err.message;
-                },
-                {enableHighAccuracy: true, timeout: 10000}
+                    const url = new URL(window.top.location);
+                    url.searchParams.set('lat', lat);
+                    url.searchParams.set('lon', lon);
+                    window.top.location = url;
+                }},
+                (err) => {{
+                    btn.innerHTML = "Try Again";
+                    status.innerHTML = "Failed: " + err.message;
+                }},
+                {{enableHighAccuracy: true, timeout: 15000}}
             );
-        } else {
-            document.getElementById('msg').innerHTML = 'GPS not supported';
-        }
-        <\/script>
-        </body></html>
-    `);
-    btn.innerHTML = "Popup Open — Check It";
-}
+        }} else {{
+            status.innerHTML = "GPS not supported";
+            btn.innerHTML = "Try Again";
+        }}
+    }};
+}})();
 </script>
-"""
-
-components.html(gps_script, height=160)
+""", height=140)
 
 # === SHOW LOCATION ===
 st.markdown(f"**Current Location:** `{st.session_state.lat:.5f}°, {st.session_state.lon:.5f}°`")
 
-# === CHECK ===
+# === CHECK BUTTON ===
 if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
     lat = st.session_state.lat
     lon = st.session_state.lon
