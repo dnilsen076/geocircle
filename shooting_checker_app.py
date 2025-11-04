@@ -3,15 +3,15 @@ import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="Washoe Safe Shot", page_icon="🎯", layout="centered")
+st.set_page_config(page_title="Washoe Safe Shot", page_icon="Target", layout="centered")
 
-st.title("🎯 **Washoe Safe Shot**")
+st.title("Target **Washoe Safe Shot**")
 st.markdown("**Official-Style Safety Tool** | **Built w/ Grok xAI** | **USMC Vet Project**")
 st.markdown("**[Washoe County Code 50](https://www.washoecounty.gov/clerks/cco/code/Chapter050.pdf)**")
 
 # Sidebar
 with st.sidebar:
-    st.header("⚖️ **Rules**")
+    st.header("Rules **EXACT Rules**")
     st.markdown("""
     - **Rifles/Pistols**: >**5,000 ft** from dwellings
     - **Shotguns/BB/Air**: >**1,000 ft** from dwellings  
@@ -34,64 +34,70 @@ def get_nearest_building(lat, lon):
                 dist = geodesic((lat, lon), (el['center']['lat'], el['center']['lon'])).meters
                 min_dist = min(min_dist, dist)
         return round(min_dist * 3.28084) if min_dist != float('inf') else None
-    except:
+    except Exception as e:
+        st.error(f"Map API error: {e}")
         return None
 
-# GPS Button
+# GPS BUTTON (FIXED — Works on Mobile!)
 components.html("""
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.createElement('button');
-    btn.innerHTML = '📍 Get My GPS Location';
-    btn.style.cssText = 'width:100%; background:#007bff; color:white; padding:14px; border:none; border-radius:8px; font-size:16px; cursor:pointer; margin:10px 0;';
-    btn.onclick = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => {
-                    const lat = pos.coords.latitude;
-                    const lon = pos.coords.longitude;
-                    // Update Streamlit inputs
-                    const latInput = parent.document.querySelectorAll('input[step="0.0001"]')[0];
-                    const lonInput = parent.document.querySelectorAll('input[step="0.0001"]')[1];
-                    if (latInput && lonInput) {
-                        latInput.value = lat;
-                        lonInput.value = lon;
-                        parent.document.querySelector('button[kind="primary"]').click();
-                    }
-                },
-                () => alert('GPS denied.'),
-                {enableHighAccuracy: true}
-            );
-        }
-    };
-    document.body.insertBefore(btn, document.body.firstChild);
-});
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showPosition, showError, {enableHighAccuracy: true});
+    } else {
+        alert("GPS not supported");
+    }
+}
+function showPosition(position) {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+    // Update Streamlit inputs
+    const inputs = parent.document.querySelectorAll('input[step="0.0001"]');
+    if (inputs.length >= 2) {
+        inputs[0].value = lat;
+        inputs[1].value = lon;
+        // Trigger update
+        const event = new Event('input', { bubbles: true });
+        inputs[0].dispatchEvent(event);
+        inputs[1].dispatchEvent(event);
+        // Click button
+        setTimeout(() => {
+            parent.document.querySelector('button[kind="primary"]').click();
+        }, 500);
+    }
+}
+function showError(error) {
+    alert("GPS Error: " + error.message);
+}
 </script>
-""", height=0)
+<button onclick="getLocation()" style="width:100%; background:#007bff; color:white; padding:14px; border:none; border-radius:8px; font-size:16px; cursor:pointer; margin:10px 0;">
+Get My GPS Location
+</button>
+""", height=80)
 
-# Inputs
+# DEFAULT: YOUR SAFE ZONE
 col1, col2 = st.columns(2)
-lat = col1.number_input("Lat", value=39.5296, step=0.0001, key="lat")
-lon = col2.number_input("Lon", value=-119.8138, step=0.0001, key="lon")
+lat = col1.number_input("Lat", value=39.72009, step=0.0001, format="%.5f")
+lon = col2.number_input("Lon", value=-119.92786, step=0.0001, format="%.5f")
 
-if st.button("**CHECK LEGALITY NOW** 🎯", type="primary"):
-    with st.spinner("Scanning..."):
+if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
+    with st.spinner("Scanning buildings..."):
         dist_ft = get_nearest_building(lat, lon)
 
-    st.markdown(f"### **Results: {lat:.4f}, {lon:.4f}**")
+    st.markdown(f"### **Results: {lat:.5f}, {lon:.5f}**")
 
-    # === EMBEDDED LIVE MAP WITH GPS PIN ===
+    # EMBEDDED MAP WITH PIN
     st.markdown("### 1. **Congested Areas Map** (You Are Pinned)")
     map_url = f"https://gis.washoecounty.us/wrms/firearm?lat={lat}&lon={lon}&zoom=15"
     components.iframe(map_url, height=500, scrolling=True)
 
-    # === DISTANCE RESULT ===
+    # DISTANCE RESULT
     if dist_ft is None:
         st.success("### 2. **Distance**: NO BUILDINGS NEARBY")
     else:
         st.metric("**Nearest Dwelling**", f"{dist_ft:,} ft")
         if dist_ft > 5000:
-            st.success("**LEGAL**: Rifles/Pistols/ALL")
+            st.success("**LEGAL**: Rifles/Pistols/ALL Firearms")
         elif dist_ft > 1000:
             st.info("**LEGAL**: Shotguns/BB/Air Rifles **ONLY**")
         else:
