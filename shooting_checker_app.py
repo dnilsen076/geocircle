@@ -3,26 +3,6 @@ import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
 
-# === SESSION STATE ===
-if 'lat' not in st.session_state:
-    st.session_state.lat = 39.72009
-if 'lon' not in st.session_state:
-    st.session_state.lon = -119.92786
-if 'gps_status' not in st.session_state:
-    st.session_state.gps_status = "Tap to get location"
-
-# === READ GPS FROM URL ===
-query_params = st.experimental_get_query_params()
-if "lat" in query_params and "lon" in query_params:
-    try:
-        st.session_state.lat = float(query_params["lat"][0])
-        st.session_state.lon = float(query_params["lon"][0])
-        st.session_state.gps_status = f"Locked: {st.session_state.lat:.5f}°, {st.session_state.lon:.5f}°"
-        st.experimental_set_query_params()  # Clear
-        st.rerun()
-    except:
-        pass
-
 st.set_page_config(page_title="Washoe Safe Shot", page_icon="Target", layout="centered")
 
 st.title("Target **Washoe Safe Shot**")
@@ -40,6 +20,23 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com)")
 
+# === NATIVE GPS (STREAMLIT CLOUD ONLY) ===
+location = st.experimental_location()
+
+if location and location["latitude"] and location["longitude"]:
+    lat = location["latitude"]
+    lon = location["longitude"]
+    st.success(f"GPS Locked: {lat:.5f}°, {lon:.5f}°")
+else:
+    lat = 39.72009  # Safe zone fallback
+    lon = -119.92786
+    st.info("Tap below to enable GPS")
+
+# === GPS BUTTON (NATIVE) ===
+if st.button("Get My GPS Location", type="primary"):
+    st.rerun()  # Triggers location request
+
+# === BUILDING CHECK ===
 @st.cache_data(ttl=300)
 def get_nearest_building(lat, lon):
     overpass_url = "http://overpass.osm.rambler.ru/cgi/interpreter"
@@ -61,64 +58,9 @@ def get_nearest_building(lat, lon):
             continue
     return None
 
-# === GPS BUTTON — PURE HTML/JS, TOP-LEVEL ===
-components.html(f"""
-<div style="text-align:center; margin:30px 0;">
-    <button id="gps-btn" style="
-        width:90%; max-width:400px;
-        background:#007bff; color:white; 
-        padding:18px; border:none; border-radius:12px; 
-        font-size:18px; font-weight:bold; cursor:pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    ">
-        {st.session_state.gps_status}
-    </button>
-    <p id="status" style="margin-top:10px; font-size:14px; color:#666;"></p>
-</div>
-
-<script>
-(function() {{
-    const btn = document.getElementById('gps-btn');
-    const status = document.getElementById('status');
-    
-    btn.onclick = function() {{
-        btn.innerHTML = "Getting Location...";
-        status.innerHTML = "";
-        
-        if (navigator.geolocation) {{
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {{
-                    const lat = pos.coords.latitude.toFixed(5);
-                    const lon = pos.coords.longitude.toFixed(5);
-                    const url = new URL(window.top.location);
-                    url.searchParams.set('lat', lat);
-                    url.searchParams.set('lon', lon);
-                    window.top.location = url;
-                }},
-                (err) => {{
-                    btn.innerHTML = "Try Again";
-                    status.innerHTML = "Failed: " + err.message;
-                }},
-                {{enableHighAccuracy: true, timeout: 15000}}
-            );
-        }} else {{
-            status.innerHTML = "GPS not supported";
-            btn.innerHTML = "Try Again";
-        }}
-    }};
-}})();
-</script>
-""", height=140)
-
-# === SHOW LOCATION ===
-st.markdown(f"**Current Location:** `{st.session_state.lat:.5f}°, {st.session_state.lon:.5f}°`")
-
 # === CHECK BUTTON ===
 if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
-    lat = st.session_state.lat
-    lon = st.session_state.lon
-
-    with st.spinner("Scanning..."):
+    with st.spinner("Scanning buildings..."):
         dist_ft = get_nearest_building(lat, lon)
 
     st.markdown(f"### **Results: {lat:.5f}° N, {lon:.5f}° W**")
