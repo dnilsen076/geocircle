@@ -3,10 +3,10 @@ import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
 
-# === CORRECT SESSION STATE INIT (NO .lon ACCESS) ===
+# === CORRECT SESSION STATE INIT ===
 if 'lat' not in st.session_state:
     st.session_state.lat = 39.72009
-if 'lon' not in st.session_state:  # ← FIXED
+if 'lon' not in st.session_state:
     st.session_state.lon = -119.92786
 
 # === READ GPS FROM URL ===
@@ -57,8 +57,8 @@ def get_nearest_building(lat, lon):
             continue
     return None
 
-# === GPS BUTTON ONLY ===
-components.html(f"""
+# === GPS BUTTON — NO F-STRING (FIXED) ===
+components.html("""
 <div style="text-align:center; margin:30px 0;">
     <button id="gps-btn" onclick="getLocation()" style="
         width:90%; max-width:400px;
