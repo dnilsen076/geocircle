@@ -20,20 +20,65 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com/operations_bureau/patrol-division/congested-areafirearms-discharge-maps.php)")
 
-# === IP LOCATION (WORKS EVERYWHERE) ===
-@st.cache_data(ttl=300)
-def get_ip_location():
-    try:
-        response = requests.get("https://ipinfo.io/json")
-        data = response.json()
-        lat, lon = map(float, data['loc'].split(','))
-        return lat, lon, data.get('city', 'Unknown'), data.get('region', 'Unknown')
-    except:
-        return 39.72009, -119.92786, "Washoe County", "Nevada"
+# === OPEN IN NEW TAB (BYPASS IFRAME) ===
+if st.button("📱 **OPEN IN FULL BROWSER (GPS Works Here)**", type="primary"):
+    st.write("""
+    <script>
+    window.open(window.location.href, '_blank');
+    </script>
+    """, unsafe_allow_html=True)
+    st.stop()
 
-lat, lon, city, region = get_ip_location()
-st.success(f"📍 Location Detected: **{city}, {region}** ({lat:.5f}°, {lon:.5f}°)")
-st.info("Using your IP address — accurate to ~1 mile. No GPS permission needed.")
+# === GPS FROM URL ===
+query_params = st.experimental_get_query_params()
+lat = float(query_params.get("lat", [39.72009])[0])
+lon = float(query_params.get("lon", [-119.92786])[0])
+
+st.success(f"📍 GPS Locked: {lat:.5f}°, {lon:.5f}°")
+
+# === GPS BUTTON (ONLY IN FULL BROWSER) ===
+components.html(f"""
+<div style="text-align:center; margin:20px;">
+    <button onclick="getGPS()" style="
+        width:90%; max-width:400px;
+        background:#007bff; color:white; 
+        padding:18px; border:none; border-radius:12px; 
+        font-size:18px; font-weight:bold; cursor:pointer;
+    ">
+        📍 Get My GPS Location
+    </button>
+    <p id="status" style="margin-top:10px; color:#555;"></p>
+</div>
+
+<script>
+function getGPS() {
+    const btn = document.querySelector('button');
+    const status = document.getElementById('status');
+    btn.innerHTML = "Getting Location...";
+    status.innerHTML = "";
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const lat = pos.coords.latitude.toFixed(5);
+                const lon = pos.coords.longitude.toFixed(5);
+                const url = new URL(window.location);
+                url.searchParams.set('lat', lat);
+                url.searchParams.set('lon', lon);
+                window.location = url;
+            },
+            (err) => {
+                btn.innerHTML = "Try Again";
+                status.innerHTML = "Failed: " + err.message;
+            },
+            {enableHighAccuracy: true, timeout: 15000}
+        );
+    } else {
+        status.innerHTML = "GPS not supported";
+    }
+}
+</script>
+""", height=140)
 
 @st.cache_data(ttl=300)
 def get_nearest_building(lat, lon):
@@ -53,32 +98,24 @@ def get_nearest_building(lat, lon):
         return None
 
 if st.button("**CHECK LEGALITY NOW** 🎯", type="primary"):
-    with st.spinner("🔍 Scanning nearest buildings..."):
+    with st.spinner("🔍 Scanning..."):
         dist_ft = get_nearest_building(lat, lon)
 
     st.markdown(f"### **Results: {lat:.5f}° N, {lon:.5f}° W**")
 
-    # Congested Areas Map (Pinned)
-    st.markdown("### 1. **Congested Areas** ⚠️ (Confirm Green Zone)")
+    st.markdown("### 1. **Congested Areas** (You Are Pinned)")
     map_url = f"https://gis.washoecounty.us/wrms/firearm?center={lat},{lon}&zoom=15"
     components.iframe(map_url, height=500)
 
-    # Distance Check
     if dist_ft is None:
-        st.success("### 2. **Distance to Dwellings** ✅ **REMOTE AREA**—No buildings nearby. **Likely Legal.**")
+        st.success("### 2. **Distance** — **REMOTE AREA** → **Likely Legal**")
     else:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("**Nearest Dwelling**", f"{dist_ft:,} ft")
-        with col2:
-            if dist_ft > 5000:
-                st.success("**🎯 LEGAL: Rifles/Pistols/ALL Firearms**")
-            elif dist_ft > 1000:
-                st.info("**🔫 LEGAL: Shotguns/BB/Air Rifles ONLY**")
-            else:
-                st.error("**🚫 ILLEGAL: TOO CLOSE!** Move farther.")
+        st.metric("**Nearest Dwelling**", f"{dist_ft:,} ft")
+        if dist_ft > 5000:
+            st.success("**🎯 LEGAL: Rifles/Pistols/ALL**")
+        elif dist_ft > 1000:
+            st.info("**🔫 LEGAL: Shotguns/BB/Air Rifles ONLY**")
+        else:
+            st.error("**🚫 ILLEGAL — TOO CLOSE!**")
 
-    st.markdown("---")
-    st.success("**✅ SAFE TO SHOOT** (if map green + no roads) | *Not legal advice* | Report: 775-785-9276")
-
-st.markdown("**👨‍✈️ Built by USMC Vet + Grok xAI** | **For Washoe Safety**")
+    st.success("**SAFE TO SHOOT** (if map green) | Not legal advice")
