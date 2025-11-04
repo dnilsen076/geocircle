@@ -3,13 +3,13 @@ import requests
 from geopy.distance import geodesic
 import streamlit.components.v1 as components
 
-# === CORRECT SESSION STATE INIT ===
+# === SESSION STATE ===
 if 'lat' not in st.session_state:
     st.session_state.lat = 39.72009
 if 'lon' not in st.session_state:
     st.session_state.lon = -119.92786
 
-# === READ GPS FROM URL ===
+# === READ FROM URL ===
 query_params = st.experimental_get_query_params()
 if "gps_lat" in query_params and "gps_lon" in query_params:
     try:
@@ -57,10 +57,10 @@ def get_nearest_building(lat, lon):
             continue
     return None
 
-# === GPS BUTTON — NO F-STRING (FIXED) ===
-components.html("""
+# === GPS BUTTON: OPENS POPUP (BYPASSES IFRAME) ===
+gps_script = """
 <div style="text-align:center; margin:30px 0;">
-    <button id="gps-btn" onclick="getLocation()" style="
+    <button id="gps-btn" onclick="openGPSPopup()" style="
         width:90%; max-width:400px;
         background:#007bff; color:white; 
         padding:18px; border:none; border-radius:12px; 
@@ -73,47 +73,66 @@ components.html("""
 </div>
 
 <script>
-function getLocation() {
+let popup = null;
+
+function openGPSPopup() {
     const btn = document.getElementById('gps-btn');
     const status = document.getElementById('status');
-    btn.innerHTML = "Getting Location...";
-    btn.disabled = true;
+    btn.innerHTML = "Opening...";
     status.innerHTML = "";
 
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const lat = pos.coords.latitude.toFixed(5);
-                const lon = pos.coords.longitude.toFixed(5);
-                const url = new URL(window.parent.location);
-                url.searchParams.set('gps_lat', lat);
-                url.searchParams.set('gps_lon', lon);
-                window.parent.location = url;
-            },
-            (err) => {
-                btn.innerHTML = "Try Again";
-                btn.disabled = false;
-                status.innerHTML = "Location denied. Try again.";
-            },
-            {enableHighAccuracy: true, timeout: 10000}
-        );
-    } else {
-        status.innerHTML = "GPS not supported.";
-        btn.disabled = false;
+    // Open popup in top window
+    popup = window.open('', 'gps_popup', 'width=400,height=300');
+    if (!popup) {
+        status.innerHTML = "Popup blocked. Allow popups.";
+        btn.innerHTML = "Try Again";
+        return;
     }
+
+    popup.document.write(`
+        <html><head><title>GPS</title></head><body style="font-family:Arial;text-align:center;padding:20px;">
+        <h3>Getting Location...</h3>
+        <p id="msg">Please wait...</p>
+        <script>
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const lat = pos.coords.latitude.toFixed(5);
+                    const lon = pos.coords.longitude.toFixed(5);
+                    const url = new URL(opener.location);
+                    url.searchParams.set('gps_lat', lat);
+                    url.searchParams.set('gps_lon', lon);
+                    opener.location = url;
+                    document.getElementById('msg').innerHTML = 'Success! Closing...';
+                    setTimeout(() => window.close(), 1000);
+                },
+                (err) => {
+                    document.getElementById('msg').innerHTML = 'Failed: ' + err.message;
+                },
+                {enableHighAccuracy: true, timeout: 10000}
+            );
+        } else {
+            document.getElementById('msg').innerHTML = 'GPS not supported';
+        }
+        <\/script>
+        </body></html>
+    `);
+    btn.innerHTML = "Popup Open — Check It";
 }
 </script>
-""", height=140)
+"""
 
-# === SHOW CURRENT LOCATION ===
+components.html(gps_script, height=160)
+
+# === SHOW LOCATION ===
 st.markdown(f"**Current Location:** `{st.session_state.lat:.5f}°, {st.session_state.lon:.5f}°`")
 
-# === CHECK BUTTON ===
+# === CHECK ===
 if st.button("**CHECK LEGALITY NOW** Target", type="primary"):
     lat = st.session_state.lat
     lon = st.session_state.lon
 
-    with st.spinner("Scanning buildings..."):
+    with st.spinner("Scanning..."):
         dist_ft = get_nearest_building(lat, lon)
 
     st.markdown(f"### **Results: {lat:.5f}° N, {lon:.5f}° W**")
