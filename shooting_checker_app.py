@@ -20,21 +20,21 @@ with st.sidebar:
     """)
     st.markdown("[Sheriff's Page](https://www.washoesheriff.com)")
 
-# === NATIVE GPS (STREAMLIT CLOUD ONLY) ===
-location = st.experimental_location()
+# === OFFICIAL GPS (STREAMLIT CLOUD) ===
+location = st.location
 
-if location and location["latitude"] and location["longitude"]:
+if location and location.get("latitude") and location.get("longitude"):
     lat = location["latitude"]
     lon = location["longitude"]
     st.success(f"GPS Locked: {lat:.5f}°, {lon:.5f}°")
 else:
-    lat = 39.72009  # Safe zone fallback
+    lat = 39.72009  # Safe zone
     lon = -119.92786
     st.info("Tap below to enable GPS")
 
-# === GPS BUTTON (NATIVE) ===
+# === GPS BUTTON ===
 if st.button("Get My GPS Location", type="primary"):
-    st.rerun()  # Triggers location request
+    st.rerun()  # Triggers location prompt
 
 # === BUILDING CHECK ===
 @st.cache_data(ttl=300)
