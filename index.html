@@ -7,15 +7,20 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 20px; font-family: Arial, sans-serif; text-align: center; background: #f4f4f4; }
+        h1 { color: #1a1a1a; }
         #map { height: 60vh; margin: 20px auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        button { background: #007bff; color: white; padding: 16px; border: none; border-radius: 12px; font-size: 18px; font-weight: bold; cursor: pointer; width: 90%; max-width: 400px; margin: 10px; }
+        button { 
+            background: #007bff; color: white; padding: 16px; 
+            border: none; border-radius: 12px; font-size: 18px; 
+            font-weight: bold; cursor: pointer; width: 90%; max-width: 400px; margin: 10px;
+        }
         button:hover { background: #0056b3; }
         #status { margin: 15px; font-size: 16px; color: #555; }
-        #verdict { font-size: 20px; font-weight: bold; margin: 20px; padding: 15px; border-radius: 8px; }
+        #verdict { font-size: 18px; font-weight: bold; margin: 20px; padding: 15px; border-radius: 8px; }
         .legal { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
         .illegal { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .rules { background: #e9ecef; padding: 10px; margin: 10px; border-radius: 8px; text-align: left; }
+        .rules { background: #e9ecef; padding: 15px; margin: 15px; border-radius: 8px; text-align: left; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -90,56 +95,74 @@
             const status = document.getElementById('status');
             status.innerHTML = 'Scanning for buildings...';
 
-            // Query Overpass API for buildings around user
-            const query = `[out:json][timeout:25];(way["building"](around:20000,${userLat},${userLon}););out center;`;
+            // CORRECTLY ENCODED QUERY
+            const overpassQuery = `[out:json][timeout:25];
+            (
+              way["building"](around:20000,${userLat},${userLon});
+              node["building"](around:20000,${userLat},${userLon});
+            );
+            out center;`;
+
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
+
             try {
-                const response = await fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query));
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
 
                 let minDist = Infinity;
                 buildings = [];
+
                 data.elements.forEach(el => {
-                    if ('center' in el) {
-                        const bLat = el.center.lat;
-                        const bLon = el.center.lon;
-                        const dist = getDistance(userLat, userLon, bLat, bLon) * 3.28084; // meters to feet
-                        buildings.push({lat: bLat, lon: bLon, dist: dist});
-                        if (dist < minDist) minDist = dist;
-                    }
+                    let bLat, bLon;
+                    if (el.center) {
+                        bLat = el.center.lat;
+                        bLon = el.center.lon;
+                    } else if (el.lat && el.lon) {
+                        bLat = el.lat;
+                        bLon = el.lon;
+                    } else return;
+                    const dist = getDistance(userLat, userLon, bLat, bLon) * 3.28084;
+                    buildings.push({ lat: bLat, lon: bLon, dist: dist });
+                    if (dist < minDist) minDist = dist;
                 });
 
-                // Add buildings to map
+                // Show buildings on map
                 map.eachLayer(layer => {
-                    if (layer instanceof L.Marker && layer.getPopup().getContent() !== 'Your Location') {
+                    if (layer instanceof L.Marker && layer.getPopup()?.getContent()?.includes('Building')) {
                         map.removeLayer(layer);
                     }
                 });
-                buildings.slice(0, 20).forEach(b => { // Show top 20 closest
-                    L.marker([b.lat, b.lon]).addTo(map).bindPopup(`Building ${b.dist.toFixed(0)} ft away`);
+                buildings.slice(0, 20).forEach(b => {
+                    L.marker([b.lat, b.lon])
+                        .addTo(map)
+                        .bindPopup(`Building: ${Math.round(b.dist)} ft`);
                 });
 
-                // Verdict
+                // VERDICT
                 const verdict = document.getElementById('verdict');
                 if (minDist === Infinity) {
-                    verdict.innerHTML = '<div class="legal">✅ REMOTE AREA - Legal for all firearms</div>';
+                    verdict.innerHTML = '<div class="legal">REMOTE AREA — Legal for all firearms</div>';
                 } else if (minDist > 5000) {
-                    verdict.innerHTML = '<div class="legal">✅ LEGAL: Rifles/Pistols/ALL (>5,000 ft)</div>';
+                    verdict.innerHTML = `<div class="legal">LEGAL: All firearms (>5,000 ft)</div>`;
                 } else if (minDist > 1000) {
-                    verdict.innerHTML = '<div class="warning">⚠️ LEGAL: Shotguns/BB/Air ONLY (>1,000 ft)</div>';
+                    verdict.innerHTML = `<div class="warning">LEGAL: Shotguns/BB/Air ONLY (>1,000 ft)</div>`;
                 } else {
-                    verdict.innerHTML = '<div class="illegal">🚫 ILLEGAL - TOO CLOSE (<1,000 ft)</div>';
+                    verdict.innerHTML = `<div class="illegal">ILLEGAL — TOO CLOSE (<1,000 ft)</div>`;
                 }
                 verdict.innerHTML += `<p>Nearest building: ${minDist.toFixed(0)} ft</p>`;
                 status.innerHTML = 'Check complete!';
+
             } catch (error) {
-                document.getElementById('verdict').innerHTML = '<div class="illegal">Error checking: ' + error.message + '</div>';
-                status.innerHTML = 'Error occurred';
+                console.error("Overpass error:", error);
+                document.getElementById('verdict').innerHTML = `<div class="illegal">API Error: ${error.message}</div>`;
+                status.innerHTML = 'Try again or check internet';
             }
         }
 
-        // Distance function (haversine)
+        // Distance function
         function getDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371e3; // Earth's radius in meters
+            const R = 6371e3;
             const φ1 = lat1 * Math.PI/180;
             const φ2 = lat2 * Math.PI/180;
             const Δφ = (lat2-lat1) * Math.PI/180;
