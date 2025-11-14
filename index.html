@@ -23,15 +23,10 @@
             background: #f1f5f9;
             color: var(--dark);
             line-height: 1.6;
-            padding: 0;
             height: 100vh;
             overflow: hidden;
         }
-        .app {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        .app { height: 100vh; display: flex; flex-direction: column; }
         .header {
             background: var(--wsco-blue);
             color: white;
@@ -39,44 +34,49 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: relative;
             z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .logo { font-size: 18px; font-weight: 700; }
         .badge { 
             background: var(--wsco-gold); color: var(--wsco-blue); 
-            padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;
+            padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
         }
         .map-container { flex: 1; position: relative; }
         #map { height: 100%; width: 100%; }
-        .bottom-bar {
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 16px;
-            display: flex; gap: 12px; align-items: center;
-            justify-content: space-between;
+        .controls {
+            position: absolute; top: 16px; left: 16px; z-index: 1000;
+            background: white; border-radius: 12px; padding: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex; flex-direction: column; gap: 8px;
         }
         .btn {
-            flex: 1; padding: 12px 16px; border: none; border-radius: 8px;
-            font-size: 16px; font-weight: 600; cursor: pointer;
-            background: var(--wsco-blue); color: white;
-            transition: all 0.2s;
+            padding: 12px 16px; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
         }
-        .btn:hover { background: #002855; }
-        .btn-check { background: var(--success); }
-        .btn-check:hover { background: #059669; }
-        .legend { font-size: 12px; opacity: 0.9; }
+        .btn-gps { background: var(--wsco-blue); color: white; }
+        .btn-check { background: var(--success); color: white; }
+        .legend {
+            display: flex; justify-content: center; gap: 16px; margin: 8px 0; font-size: 12px;
+            color: var(--gray);
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .circle { width: 10px; height: 10px; border-radius: 50%; }
+        .circle-1000 { background: #f97316; opacity: 0.7; }
+        .circle-5000 { background: #dc2626; opacity: 0.5; }
         .verdict {
-            position: absolute; bottom: 80px; left: 16px; right: 16px;
-            background: white; border-radius: 12px; padding: 12px;
+            position: absolute; bottom: 16px; left: 16px; right: 16px;
+            background: white; border-radius: 12px; padding: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 5;
+            border-left: 4px solid;
         }
-        .legal { border-left: 4px solid var(--success); }
-        .warning { border-left: 4px solid var(--warning); }
-        .illegal { border-left: 4px solid var(--danger); }
-        .metric { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-        .distance { font-size: 12px; opacity: 0.8; }
-        #status { position: absolute; top: 16px; left: 16px; background: rgba(0,0,0,0.7); color: white; padding: 8px 12px; border-radius: 20px; z-index: 5; }
+        .legal { border-color: var(--success); }
+        .warning { border-color: var(--warning); }
+        .illegal { border-color: var(--danger); }
+        .metric { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .status { font-size: 12px; opacity: 0.8; }
+        #status { position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.7); color: white; padding: 6px 10px; border-radius: 20px; z-index: 5; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -88,22 +88,19 @@
 
         <div class="map-container">
             <div id="map"></div>
-            <div id="status">Tap to get GPS</div>
-            <div id="verdict" class="verdict" style="display:none;"></div>
-        </div>
+            <div id="status">Ready</div>
 
-        <div class="bottom-bar">
-            <div class="legend">
-                <div style="display:flex; gap:4px; align-items:center; font-size:11px;">
-                    <div style="width:8px;height:8px;background:orange;border-radius:50%;opacity:0.6;"></div>
-                    1,000 ft (Shotgun)
-                </div>
-                <div style="display:flex; gap:4px; align-items:center; font-size:11px;">
-                    <div style="width:8px;height:8px;background:red;border-radius:50%;opacity:0.4;"></div>
-                    5,000 ft (Rifle)
-                </div>
+            <div class="controls">
+                <button class="btn btn-gps" onclick="getLocation()">📍 Get GPS</button>
+                <button class="btn btn-check" onclick="checkLegality()">🎯 Check Legality</button>
             </div>
-            <button class="btn btn-check" onclick="checkLegality()">Check Legality</button>
+
+            <div class="legend">
+                <div class="legend-item"><div class="circle circle-1000"></div> 1,000 ft</div>
+                <div class="legend-item"><div class="circle circle-5000"></div> 5,000 ft</div>
+            </div>
+
+            <div id="verdict" class="verdict" style="display:none;"></div>
         </div>
     </div>
 
@@ -112,11 +109,10 @@
         let map, userLat, userLon, buildings = [], userMarker, circle1000, circle5000;
 
         function initMap() {
-            map = L.map('map').setView([39.72009, -119.92786], 16);
+            map = L.map('map').setView([39.72009, -119.92786], 15);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap'
             }).addTo(map);
-            L.marker([39.72009, -119.92786]).addTo(map).bindPopup('Default');
         }
 
         function getLocation() {
@@ -126,10 +122,10 @@
                     pos => {
                         userLat = pos.coords.latitude;
                         userLon = pos.coords.longitude;
-                        document.getElementById('status').innerHTML = `GPS: ${userLat.toFixed(5)}, ${userLon.toFixed(5)}`;
+                        document.getElementById('status').innerHTML = 'GPS Locked';
                         updateMap();
                     },
-                    err => document.getElementById('status').innerHTML = 'GPS Error',
+                    err => document.getElementById('status').innerHTML = 'GPS Failed',
                     {enableHighAccuracy: true, timeout: 15000}
                 );
             } else {
@@ -141,13 +137,13 @@
             map.setView([userLat, userLon], 16);
 
             if (userMarker) map.removeLayer(userMarker);
-            userMarker = L.marker([userLat, userLon]).addTo(map).bindPopup('You are here');
+            userMarker = L.marker([userLat, userLon]).addTo(map).bindPopup('You are here').openPopup();
 
             if (circle1000) map.removeLayer(circle1000);
-            circle1000 = L.circle([userLat, userLon], {radius: 304.8, color: 'orange', fillOpacity: 0.1}).addTo(map);
+            circle1000 = L.circle([userLat, userLon], {radius: 304.8, color: '#f97316', fillOpacity: 0.1}).addTo(map);
 
             if (circle5000) map.removeLayer(circle5000);
-            circle5000 = L.circle([userLat, userLon], {radius: 1524, color: 'red', fillOpacity: 0.05}).addTo(map);
+            circle5000 = L.circle([userLat, userLon], {radius: 1524, color: '#dc2626', fillOpacity: 0.05}).addTo(map);
         }
 
         async function checkLegality() {
@@ -179,10 +175,10 @@
                     }
                 });
 
-                // Buildings on map
+                // Show buildings
                 map.eachLayer(l => { if (l instanceof L.CircleMarker) map.removeLayer(l); });
                 buildings.slice(0, 15).forEach(b => {
-                    L.circleMarker([b.lat, b.lon], {radius: 6, color: 'red', fillOpacity: 0.8}).addTo(map)
+                    L.circleMarker([b.lat, b.lon], {radius: 6, color: '#dc2626', fillOpacity: 0.8}).addTo(map)
                         .bindPopup(`Building: ${Math.round(b.dist)} ft`);
                 });
 
