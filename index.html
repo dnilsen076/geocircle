@@ -8,8 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --wsco-blue: #003366;
-            --wsco-gold: #FFD700;
+            --navy: #0f172a;
+            --gold: #FFD700;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
@@ -28,7 +28,7 @@
         }
         .app { height: 100vh; display: flex; flex-direction: column; }
         .header {
-            background: var(--wsco-blue);
+            background: var(--navy);
             color: white;
             padding: 12px 16px;
             display: flex;
@@ -39,7 +39,7 @@
         }
         .logo { font-size: 18px; font-weight: 700; }
         .badge { 
-            background: var(--wsco-gold); color: var(--wsco-blue); 
+            background: var(--gold); color: var(--navy); 
             padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
         }
         .map-container { flex: 1; position: relative; }
@@ -55,7 +55,7 @@
             font-size: 14px; font-weight: 600; cursor: pointer;
             display: flex; align-items: center; justify-content: center; gap: 6px;
         }
-        .btn-gps { background: var(--wsco-blue); color: white; }
+        .btn-gps { background: var(--navy); color: white; }
         .btn-check { background: var(--success); color: white; }
         .legend {
             display: flex; justify-content: center; gap: 16px; margin: 8px 0; font-size: 12px;
@@ -67,8 +67,8 @@
         .circle-5000 { background: #dc2626; opacity: 0.5; }
         .verdict {
             position: absolute; bottom: 16px; left: 16px; right: 16px;
-            background: white; border-radius: 12px; padding: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 5;
+            background: rgba(15, 23, 42, 0.9); color: white; border-radius: 12px; padding: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 5;
             border-left: 4px solid;
         }
         .legal { border-color: var(--success); }
@@ -91,8 +91,8 @@
             <div id="status">Ready</div>
 
             <div class="controls">
-                <button class="btn btn-gps" onclick="getLocation()">📍 Get GPS</button>
-                <button class="btn btn-check" onclick="checkLegality()">🎯 Check Legality</button>
+                <button class="btn btn-gps" onclick="getLocation()">Get GPS</button>
+                <button class="btn btn-check" onclick="checkLegality()">Check Legality</button>
             </div>
 
             <div class="legend">
@@ -137,7 +137,7 @@
             map.setView([userLat, userLon], 16);
 
             if (userMarker) map.removeLayer(userMarker);
-            userMarker = L.marker([userLat, userLon]).addTo(map).bindPopup('You are here').openPopup();
+            userMarker = L.marker([userLat, userLon]).addTo(map).bindPopup('You are here');
 
             if (circle1000) map.removeLayer(circle1000);
             circle1000 = L.circle([userLat, userLon], {radius: 304.8, color: '#f97316', fillOpacity: 0.1}).addTo(map);
