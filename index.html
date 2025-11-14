@@ -3,89 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Washoe Safe Shot - GPS Shooting Checker</title>
+    <title>Washoe Safe Shot</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; text-align: center; background: #f4f4f4; }
-        h1 { color: #1a1a1a; }
-        #map { height: 60vh; margin: 20px auto; border-radius: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        button { 
-            background: #007bff; color: white; padding: 16px; 
-            border: none; border-radius: 12px; font-size: 18px; 
-            font-weight: bold; cursor: pointer; width: 90%; max-width: 400px; margin: 10px;
+        :root {
+            --primary: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --gray: #6b7280;
         }
-        button:hover { background: #0056b3; }
-        #status { margin: 15px; font-size: 16px; color: #555; }
-        #verdict { font-size: 18px; font-weight: bold; margin: 20px; padding: 15px; border-radius: 8px; }
-        .legal { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
-        .illegal { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .rules { background: #e9ecef; padding: 15px; margin: 15px; border-radius: 8px; text-align: left; font-size: 14px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            color: var(--dark);
+            line-height: 1.6;
+            padding: 16px;
+        }
+        .container { max-width: 480px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 24px; }
+        h1 { font-size: 28px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+        .tagline { font-size: 14px; color: var(--gray); margin-bottom: 16px; }
+        .code-link { color: var(--primary); text-decoration: none; font-weight: 500; }
+        .rules {
+            background: white; border-radius: 12px; padding: 16px; margin: 16px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 14px;
+        }
+        .rules h3 { font-size: 16px; margin-bottom: 8px; color: var(--dark); }
+        .rules ul { text-align: left; }
+        .rules li { margin: 6px 0; }
+        .btn {
+            width: 100%; padding: 16px; border: none; border-radius: 12px;
+            font-size: 16px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; margin: 12px 0;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .btn-check { background: var(--success); color: white; }
+        .btn-check:hover { background: #059669; }
+        #status { text-align: center; margin: 12px 0; font-weight: 500; }
+        #map { height: 50vh; border-radius: 12px; margin: 20px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .verdict {
+            padding: 16px; border-radius: 12px; margin: 16px 0;
+            font-weight: 600; text-align: center; animation: fadeIn 0.5s;
+        }
+        .legal { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+        .warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
+        .illegal { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .metric { font-size: 18px; font-weight: 700; margin: 8px 0; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        footer { text-align: center; margin-top: 32px; font-size: 12px; color: var(--gray); }
     </style>
 </head>
 <body>
-    <h1>🎯 Washoe Safe Shot</h1>
-    <p><strong>USMC Vet Project | Built with Grok xAI</strong></p>
-    <p><a href="https://www.washoecounty.gov/clerks/cco/code/Chapter050.pdf" target="_blank">Washoe County Code 50</a></p>
+    <div class="container">
+        <header>
+            <h1>🎯 Washoe Safe Shot</h1>
+            <p class="tagline">USMC Vet Project • Built with Grok xAI</p>
+            <p><a href="https://www.washoecounty.gov/clerks/cco/code/Chapter050.pdf" target="_blank" class="code-link">Washoe County Code 50</a></p>
+        </header>
 
-    <div class="rules">
-        <h3>📋 Quick Rules</h3>
-        <ul>
-            <li>Rifles/Pistols: >5,000 ft from dwellings</li>
-            <li>Shotguns/BB/Air: >1,000 ft from dwellings</li>
-            <li>NO: Congested areas, roads, parks</li>
-            <li>Report illegal: 775-785-9276</li>
-        </ul>
-        <p><a href="https://www.washoesheriff.com" target="_blank">Sheriff's Page</a></p>
+        <div class="rules">
+            <h3>📋 Shooting Rules</h3>
+            <ul>
+                <li><strong>Rifles/Pistols:</strong> >5,000 ft from dwellings</li>
+                <li><strong>Shotguns/BB/Air:</strong> >1,000 ft from dwellings</li>
+                <li><strong>NO:</strong> Congested areas, roads, parks</li>
+                <li><strong>Report:</strong> 775-785-9276</li>
+            </ul>
+            <p><a href="https://www.washoesheriff.com" target="_blank">Sheriff's Page</a></p>
+        </div>
+
+        <p id="status">Tap below to get your GPS location</p>
+        <button class="btn btn-primary" onclick="getLocation()">📍 Get My GPS Location</button>
+
+        <div id="map"></div>
+
+        <button class="btn btn-check" onclick="checkLegality()">🎯 Check Legality</button>
+        <div id="verdict"></div>
+
+        <footer>
+            <p>Built for safety • Not legal advice • Always verify on-site</p>
+        </footer>
     </div>
-
-    <p id="status">Tap button to get your GPS location</p>
-    <button onclick="getLocation()">📍 Get My GPS Location</button>
-
-    <div id="map"></div>
-
-    <button onclick="checkLegality()">🎯 Check Legality</button>
-    <div id="verdict"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map;
-        let userLat, userLon;
-        let buildings = [];
+        let map, userLat, userLon, buildings = [];
 
-        // Initialize map
         function initMap() {
             map = L.map('map').setView([39.72009, -119.92786], 16);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+                attribution: '© OpenStreetMap'
             }).addTo(map);
-            L.marker([39.72009, -119.92786]).addTo(map).bindPopup('Default Location - Get GPS for accuracy');
+            L.marker([39.72009, -119.92786]).addTo(map).bindPopup('Default Location');
         }
 
-        // Get GPS
         function getLocation() {
             const status = document.getElementById('status');
-            status.innerHTML = 'Getting your location...';
+            status.innerHTML = 'Getting location...';
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        userLat = position.coords.latitude;
-                        userLon = position.coords.longitude;
+                    pos => {
+                        userLat = pos.coords.latitude;
+                        userLon = pos.coords.longitude;
                         status.innerHTML = `GPS Locked: ${userLat.toFixed(5)}°, ${userLon.toFixed(5)}°`;
                         map.setView([userLat, userLon], 16);
-                        L.marker([userLat, userLon]).addTo(map).bindPopup('Your Location').openPopup();
+                        L.marker([userLat, userLon]).addTo(map).bindPopup('You are here').openPopup();
                     },
-                    (error) => {
-                        status.innerHTML = 'Error getting location: ' + error.message;
-                    },
+                    err => status.innerHTML = 'GPS Error: ' + err.message,
                     {enableHighAccuracy: true, timeout: 15000}
                 );
             } else {
-                status.innerHTML = 'Geolocation not supported';
+                status.innerHTML = 'GPS not supported';
             }
         }
 
-        // Check legality
         async function checkLegality() {
             if (!userLat || !userLon) {
                 document.getElementById('verdict').innerHTML = '<div class="illegal">Get GPS first!</div>';
@@ -93,88 +132,59 @@
             }
 
             const status = document.getElementById('status');
-            status.innerHTML = 'Scanning for buildings...';
+            status.innerHTML = 'Scanning buildings...';
 
-            // CORRECTLY ENCODED QUERY
-            const overpassQuery = `[out:json][timeout:25];
-            (
-              way["building"](around:20000,${userLat},${userLon});
-              node["building"](around:20000,${userLat},${userLon});
-            );
+            const query = `[out:json][timeout:25];
+            (way["building"](around:20000,${userLat},${userLon}););
             out center;`;
-
-            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
+            const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
             try {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
 
                 let minDist = Infinity;
                 buildings = [];
-
                 data.elements.forEach(el => {
-                    let bLat, bLon;
                     if (el.center) {
-                        bLat = el.center.lat;
-                        bLon = el.center.lon;
-                    } else if (el.lat && el.lon) {
-                        bLat = el.lat;
-                        bLon = el.lon;
-                    } else return;
-                    const dist = getDistance(userLat, userLon, bLat, bLon) * 3.28084;
-                    buildings.push({ lat: bLat, lon: bLon, dist: dist });
-                    if (dist < minDist) minDist = dist;
-                });
-
-                // Show buildings on map
-                map.eachLayer(layer => {
-                    if (layer instanceof L.Marker && layer.getPopup()?.getContent()?.includes('Building')) {
-                        map.removeLayer(layer);
+                        const dist = getDistance(userLat, userLon, el.center.lat, el.center.lon) * 3.28084;
+                        buildings.push({lat: el.center.lat, lon: el.center.lon, dist});
+                        if (dist < minDist) minDist = dist;
                     }
                 });
-                buildings.slice(0, 20).forEach(b => {
-                    L.marker([b.lat, b.lon])
-                        .addTo(map)
+
+                // Show buildings
+                map.eachLayer(l => { if (l instanceof L.Marker && l.getPopup()?.getContent()?.includes('Building')) map.removeLayer(l); });
+                buildings.slice(0, 15).forEach(b => {
+                    L.circleMarker([b.lat, b.lon], {radius: 6, color: '#dc2626'}).addTo(map)
                         .bindPopup(`Building: ${Math.round(b.dist)} ft`);
                 });
 
-                // VERDICT
-                const verdict = document.getElementById('verdict');
-                if (minDist === Infinity) {
-                    verdict.innerHTML = '<div class="legal">REMOTE AREA — Legal for all firearms</div>';
-                } else if (minDist > 5000) {
-                    verdict.innerHTML = `<div class="legal">LEGAL: All firearms (>5,000 ft)</div>`;
-                } else if (minDist > 1000) {
-                    verdict.innerHTML = `<div class="warning">LEGAL: Shotguns/BB/Air ONLY (>1,000 ft)</div>`;
-                } else {
-                    verdict.innerHTML = `<div class="illegal">ILLEGAL — TOO CLOSE (<1,000 ft)</div>`;
-                }
-                verdict.innerHTML += `<p>Nearest building: ${minDist.toFixed(0)} ft</p>`;
-                status.innerHTML = 'Check complete!';
+                // Verdict
+                const v = document.getElementById('verdict');
+                let html = `<div class="metric">Nearest: ${minDist.toFixed(0)} ft</div>`;
+                if (minDist > 5000) html += `<div class="legal">LEGAL: All Firearms</div>`;
+                else if (minDist > 1000) html += `<div class="warning">LEGAL: Shotguns/BB/Air ONLY</div>`;
+                else html += `<div class="illegal">ILLEGAL — TOO CLOSE</div>`;
+                v.innerHTML = html;
+                status.innerHTML = 'Check complete';
 
-            } catch (error) {
-                console.error("Overpass error:", error);
-                document.getElementById('verdict').innerHTML = `<div class="illegal">API Error: ${error.message}</div>`;
-                status.innerHTML = 'Try again or check internet';
+            } catch (e) {
+                document.getElementById('verdict').innerHTML = `<div class="illegal">Error: ${e.message}</div>`;
+                status.innerHTML = 'Retry';
             }
         }
 
-        // Distance function
         function getDistance(lat1, lon1, lat2, lon2) {
             const R = 6371e3;
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            const φ1 = lat1 * Math.PI/180, φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180, Δλ = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(Δφ/2)**2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2)**2;
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             return R * c;
         }
 
-        // Init
         initMap();
     </script>
 </body>
