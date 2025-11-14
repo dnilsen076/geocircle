@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Washoe Safe Shot</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,12 +18,13 @@
             --gray: #64748b;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Inter', sans-serif;
             background: #f1f5f9;
             color: var(--dark);
             line-height: 1.6;
+            height: 100vh;
+            overflow: hidden;
         }
         .app { height: 100vh; display: flex; flex-direction: column; }
         .header {
@@ -35,15 +36,11 @@
             justify-content: space-between;
             z-index: 10;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            position: relative;
         }
         .logo { font-size: 18px; font-weight: 700; }
         .badge {
             background: var(--gold); color: var(--navy);
             padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
-        }
-        .menu-btn {
-            background: none; border: none; color: white; font-size: 24px; cursor: pointer;
         }
         .map-container { flex: 1; position: relative; }
         #map { height: 100%; width: 100%; }
@@ -52,9 +49,8 @@
             background: rgba(15, 23, 42, 0.85); color: white; border-radius: 12px;
             padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             display: flex; justify-content: space-between; align-items: center;
-            font-size: 14px; transition: transform 0.3s ease;
+            font-size: 14px;
         }
-        .overlay-card.hidden { transform: translateY(-120%); }
         .range {
             display: flex; flex-direction: column; align-items: center; gap: 4px;
         }
@@ -63,17 +59,12 @@
         }
         .range-1000 { background: #f97316; }
         .range-5000 { background: #dc2626; }
-        .fab {
-            position: absolute; z-index: 1000;
-            width: 56px; height: 56px; border-radius: 50%;
-            border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px; color: white;
-            transition: transform 0.2s;
+        .btn-check {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: var(--success); color: white; padding: 12px 24px;
+            border: none; border-radius: 30px; font-size: 16px; font-weight: 600;
+            cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 5;
         }
-        .fab:active { transform: scale(0.95); }
-        .fab-gps { bottom: 32px; right: 16px; background: var(--navy); }
-        .fab-check { bottom: 32px; left: 16px; background: var(--success); }
         .verdict {
             position: absolute; bottom: 16px; left: 16px; right: 16px;
             background: rgba(15, 23, 42, 0.9); color: white; border-radius: 12px; padding: 16px;
@@ -86,21 +77,25 @@
         .metric { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
         .status { font-size: 12px; opacity: 0.8; }
         #status { position: absolute; top: 16px; right: 16px; background: rgba(0,0,0,0.7); color: white; padding: 6px 10px; border-radius: 20px; z-index: 5; font-size: 12px; }
+        .restriction-layer {
+            position: absolute; bottom: 16px; left: 16px; z-index: 5;
+            background: white; border-radius: 8px; padding: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .layer-toggle { margin-right: 8px; }
     </style>
 </head>
 <body>
     <div class="app">
         <div class="header">
-            <button class="menu-btn" onclick="toggleLegend()">☰</button>
             <div class="logo">Washoe Safe Shot</div>
             <div class="badge">WCSO</div>
         </div>
 
         <div class="map-container">
             <div id="map"></div>
-            <div id="status">Ready</div>
+            <div id="status">Loading GPS...</div>
 
-            <div id="overlay-card" class="overlay-card">
+            <div class="overlay-card">
                 <div class="range">
                     <div class="range-line range-1000"></div>
                     <div>1,000 ft</div>
@@ -113,23 +108,46 @@
                 </div>
             </div>
 
-            <button class="fab fab-gps" onclick="getLocation()" title="Recenter GPS">Recenter</button>
-            <button class="fab fab-check" onclick="checkLegality()" title="Check Legality">Check</button>
+            <button class="btn-check" onclick="checkLegality()">Check Legality</button>
 
             <div id="verdict" class="verdict"></div>
+
+            <div class="restriction-layer">
+                <label class="layer-toggle">
+                    <input type="checkbox" id="restriction-layer" checked onclick="toggleRestrictionLayer()">
+                    Restriction Areas
+                </label>
+            </div>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map, userLat, userLon, buildings = [], userMarker, circle1000, circle5000;
+        let map, userLat, userLon, buildings = [], userMarker, circle1000, circle5000, restrictionLayer;
 
         function initMap() {
-            map = L.map('map', { zoomControl: false }).setView([39.72009, -119.92786], 15);
+            map = L.map('map').setView([39.72009, -119.92786], 15);
             L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
                 attribution: '© Esri'
             }).addTo(map);
+
+            // Add Washoe Restriction Layer (ArcGIS Tile Layer)
+            restrictionLayer = L.tileLayer('https://gis.washoecounty.us/arcgis/rest/services/WRMS/WRMSCongestedFireArms/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Washoe County GIS',
+                opacity: 0.6
+            }).addTo(map);
+
             L.control.scale().addTo(map);
+        }
+
+        function toggleRestrictionLayer() {
+            if (restrictionLayer) {
+                if (map.hasLayer(restrictionLayer)) {
+                    map.removeLayer(restrictionLayer);
+                } else {
+                    map.addLayer(restrictionLayer);
+                }
+            }
         }
 
         function getLocation() {
@@ -167,11 +185,6 @@
             circle5000 = L.circle([userLat, userLon], {
                 radius: 1524, color: '#dc2626', fillOpacity: 0.05, weight: 2
             }).addTo(map).bindPopup('5,000 ft minimum (Rifles/Pistols)');
-        }
-
-        function toggleLegend() {
-            const card = document.getElementById('overlay-card');
-            card.classList.toggle('hidden');
         }
 
         async function checkLegality() {
@@ -237,7 +250,7 @@
         }
 
         initMap();
-        getLocation(); // Auto-get GPS
+        getLocation(); // Auto-get GPS on load
     </script>
 </body>
 </html>
