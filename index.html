@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Washoe Safe Shot | WCSO Safety Tool</title>
+    <title>Washoe Safe Shot</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -23,107 +23,88 @@
             background: #f1f5f9;
             color: var(--dark);
             line-height: 1.6;
-            padding: 16px;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
         }
-        .container { max-width: 480px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        header {
+        .app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
             background: var(--wsco-blue);
             color: white;
-            padding: 20px;
-            text-align: center;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             position: relative;
+            z-index: 10;
         }
-        header::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><path d="M0,10 Q25,0 50,10 T100,10" fill="none" stroke="%23FFD700" stroke-width="2"/></svg>') center bottom no-repeat;
-            background-size: 100% 10px;
-            opacity: 0.2;
-        }
-        h1 { font-size: 24px; font-weight: 700; margin: 0; position: relative; z-index: 1; }
-        .tagline { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .logo { font-size: 18px; font-weight: 700; }
         .badge { 
-            display: inline-block; background: var(--wsco-gold); color: var(--wsco-blue); 
-            padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-top: 8px;
+            background: var(--wsco-gold); color: var(--wsco-blue); 
+            padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: 600;
         }
-        .content { padding: 20px; }
-        .section { margin-bottom: 20px; }
-        .section h3 { font-size: 16px; color: var(--wsco-blue); margin-bottom: 10: 8px; font-weight: 600; }
+        .map-container { flex: 1; position: relative; }
+        #map { height: 100%; width: 100%; }
+        .bottom-bar {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 16px;
+            display: flex; gap: 12px; align-items: center;
+            justify-content: space-between;
+        }
         .btn {
-            width: 100%; padding: 16px; border: none; border-radius: 12px;
+            flex: 1; padding: 12px 16px; border: none; border-radius: 8px;
             font-size: 16px; font-weight: 600; cursor: pointer;
-            transition: all 0.2s; margin: 8px 0;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
+            background: var(--wsco-blue); color: white;
+            transition: all 0.2s;
         }
-        .btn-primary { background: var(--wsco-blue); color: white; }
-        .btn-primary:hover { background: #002855; }
-        .btn-check { background: var(--success); color: white; }
+        .btn:hover { background: #002855; }
+        .btn-check { background: var(--success); }
         .btn-check:hover { background: #059669; }
-        #status { text-align: center; margin: 12px 0; font-weight: 500; color: var(--gray); }
-        #map { height: 50vh; border-radius: 12px; margin: 16px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .legend {
-            display: flex; justify-content: center; gap: 16px; margin: 12px 0; font-size: 13px;
-        }
-        .legend-item { display: flex; align-items: center; gap: 6px; }
-        .circle { width: 12px; height: 12px; border-radius: 50%; }
-        .circle-1000 { background: #f97316; opacity: 0.6; }
-        .circle-5000 { background: #dc2626; opacity: 0.4; }
+        .legend { font-size: 12px; opacity: 0.9; }
         .verdict {
-            padding: 16px; border-radius: 12px; margin: 16px 0;
-            font-weight: 600; text-align: center; animation: fadeIn 0.5s;
-            border: 1px solid;
+            position: absolute; bottom: 80px; left: 16px; right: 16px;
+            background: white; border-radius: 12px; padding: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 5;
         }
-        .legal { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
-        .warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
-        .illegal { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
-        .metric { font-size: 20px; font-weight: 700; margin: 8px 0; }
-        .disclaimer { font-size: 12px; color: var(--gray); text-align: center; margin-top: 16px; }
-        footer { text-align: center; margin: 24px 0 16px; font-size: 12px; color: var(--gray); }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .legal { border-left: 4px solid var(--success); }
+        .warning { border-left: 4px solid var(--warning); }
+        .illegal { border-left: 4px solid var(--danger); }
+        .metric { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+        .distance { font-size: 12px; opacity: 0.8; }
+        #status { position: absolute; top: 16px; left: 16px; background: rgba(0,0,0,0.7); color: white; padding: 8px 12px; border-radius: 20px; z-index: 5; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🎯 Washoe Safe Shot</h1>
-            <p class="tagline">Official-Style Safety Tool</p>
-            <div class="badge">USMC Vet Project • Grok xAI</div>
-        </header>
-
-        <div class="content">
-            <div class="section">
-                <h3>📋 Shooting Rules</h3>
-                <ul style="text-align:left; font-size:14px;">
-                    <li><strong>Rifles/Pistols:</strong> >5,000 ft from dwellings</li>
-                    <li><strong>Shotguns/BB/Air:</strong> >1,000 ft from dwellings</li>
-                    <li><strong>NO:</strong> Congested areas, roads, parks</li>
-                    <li><strong>Report:</strong> 775-785-9276</li>
-                </ul>
-                <p style="text-align:center; margin-top:8px;">
-                    <a href="https://www.washoesheriff.com" target="_blank" style="color:var(--wsco-blue); font-weight:500; text-decoration:none;">Sheriff's Page →</a>
-                </p>
-            </div>
-
-            <p id="status">Tap below to get your GPS location</p>
-            <button class="btn btn-primary" onclick="getLocation()">📍 Get My GPS Location</button>
-
-            <div id="map"></div>
-
-            <div class="legend">
-                <div class="legend-item"><div class="circle circle-1000"></div> 1,000 ft</div>
-                <div class="legend-item"><div class="circle circle-5000"></div> 5,000 ft</div>
-            </div>
-
-            <button class="btn btn-check" onclick="checkLegality()">🎯 Check Legality</button>
-            <div id="verdict"></div>
-
-            <p class="disclaimer">⚠️ Informational only • Not legal advice • Always verify on-site</p>
+    <div class="app">
+        <div class="header">
+            <div class="logo">Washoe Safe Shot</div>
+            <div class="badge">WCSO</div>
         </div>
 
-        <footer>
-            <p>Built for Washoe County Safety • <a href="mailto:your.email@example.com" style="color:var(--wsco-blue);">Contact</a></p>
-        </footer>
+        <div class="map-container">
+            <div id="map"></div>
+            <div id="status">Tap to get GPS</div>
+            <div id="verdict" class="verdict" style="display:none;"></div>
+        </div>
+
+        <div class="bottom-bar">
+            <div class="legend">
+                <div style="display:flex; gap:4px; align-items:center; font-size:11px;">
+                    <div style="width:8px;height:8px;background:orange;border-radius:50%;opacity:0.6;"></div>
+                    1,000 ft (Shotgun)
+                </div>
+                <div style="display:flex; gap:4px; align-items:center; font-size:11px;">
+                    <div style="width:8px;height:8px;background:red;border-radius:50%;opacity:0.4;"></div>
+                    5,000 ft (Rifle)
+                </div>
+            </div>
+            <button class="btn btn-check" onclick="checkLegality()">Check Legality</button>
+        </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -135,61 +116,51 @@
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap'
             }).addTo(map);
+            L.marker([39.72009, -119.92786]).addTo(map).bindPopup('Default');
         }
 
         function getLocation() {
-            const status = document.getElementById('status');
-            status.innerHTML = 'Getting location...';
+            document.getElementById('status').innerHTML = 'Getting GPS...';
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     pos => {
                         userLat = pos.coords.latitude;
                         userLon = pos.coords.longitude;
-                        status.innerHTML = `GPS Locked: ${userLat.toFixed(5)}°, ${userLon.toFixed(5)}°`;
+                        document.getElementById('status').innerHTML = `GPS: ${userLat.toFixed(5)}, ${userLon.toFixed(5)}`;
                         updateMap();
                     },
-                    err => status.innerHTML = 'GPS Error: ' + err.message,
+                    err => document.getElementById('status').innerHTML = 'GPS Error',
                     {enableHighAccuracy: true, timeout: 15000}
                 );
             } else {
-                status.innerHTML = 'GPS not supported';
+                document.getElementById('status').innerHTML = 'GPS not supported';
             }
         }
 
         function updateMap() {
             map.setView([userLat, userLon], 16);
 
-            // Remove old
             if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.marker([userLat, userLon]).addTo(map).bindPopup('You are here');
+
             if (circle1000) map.removeLayer(circle1000);
+            circle1000 = L.circle([userLat, userLon], {radius: 304.8, color: 'orange', fillOpacity: 0.1}).addTo(map);
+
             if (circle5000) map.removeLayer(circle5000);
-
-            // Add user
-            userMarker = L.marker([userLat, userLon], {
-                icon: L.divIcon({className: 'user-pin', html: '📍', iconSize: [30, 30]})
-            }).addTo(map).bindPopup('You are here').openPopup();
-
-            // Add circles
-            circle1000 = L.circle([userLat, userLon], {
-                radius: 304.8, color: '#f97316', fillColor: '#f97316', fillOpacity: 0.1, weight: 2
-            }).addTo(map).bindPopup('1,000 ft minimum (Shotguns/BB/Air)');
-
-            circle5000 = L.circle([userLat, userLon], {
-                radius: 1524, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.05, weight: 2
-            }).addTo(map).bindPopup('5,000 ft minimum (Rifles/Pistols)');
+            circle5000 = L.circle([userLat, userLon], {radius: 1524, color: 'red', fillOpacity: 0.05}).addTo(map);
         }
 
         async function checkLegality() {
             if (!userLat || !userLon) {
+                document.getElementById('verdict').style.display = 'block';
                 document.getElementById('verdict').innerHTML = '<div class="illegal">Get GPS first!</div>';
                 return;
             }
 
-            const status = document.getElementById('status');
-            status.innerHTML = 'Scanning buildings...';
+            document.getElementById('status').innerHTML = 'Scanning...';
 
             const query = `[out:json][timeout:25];
-            (way["building"](around:20000,${userLat},${userLon}););
+            (way["building"](around:5000,${userLat},${userLon}););
             out center;`;
             const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
 
@@ -208,26 +179,26 @@
                     }
                 });
 
-                // Show buildings
+                // Buildings on map
                 map.eachLayer(l => { if (l instanceof L.CircleMarker) map.removeLayer(l); });
                 buildings.slice(0, 15).forEach(b => {
-                    L.circleMarker([b.lat, b.lon], {radius: 6, color: '#dc2626', fillOpacity: 0.8})
-                        .addTo(map)
+                    L.circleMarker([b.lat, b.lon], {radius: 6, color: 'red', fillOpacity: 0.8}).addTo(map)
                         .bindPopup(`Building: ${Math.round(b.dist)} ft`);
                 });
 
                 // Verdict
                 const v = document.getElementById('verdict');
+                v.style.display = 'block';
                 let html = `<div class="metric">Nearest: ${minDist.toFixed(0)} ft</div>`;
                 if (minDist > 5000) html += `<div class="legal">LEGAL: All Firearms</div>`;
                 else if (minDist > 1000) html += `<div class="warning">LEGAL: Shotguns/BB/Air ONLY</div>`;
                 else html += `<div class="illegal">ILLEGAL — TOO CLOSE</div>`;
                 v.innerHTML = html;
-                status.innerHTML = 'Check complete';
+                document.getElementById('status').innerHTML = 'Complete';
 
             } catch (e) {
                 document.getElementById('verdict').innerHTML = `<div class="illegal">Error: ${e.message}</div>`;
-                status.innerHTML = 'Retry';
+                document.getElementById('status').innerHTML = 'Retry';
             }
         }
 
