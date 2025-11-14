@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Washoe Safe Shot</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,13 +18,12 @@
             --gray: #64748b;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Inter', sans-serif;
             background: #f1f5f9;
             color: var(--dark);
             line-height: 1.6;
-            height: 100vh;
-            overflow: hidden;
         }
         .app { height: 100vh; display: flex; flex-direction: column; }
         .header {
@@ -36,11 +35,15 @@
             justify-content: space-between;
             z-index: 10;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
         }
         .logo { font-size: 18px; font-weight: 700; }
         .badge {
             background: var(--gold); color: var(--navy);
             padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+        }
+        .menu-btn {
+            background: none; border: none; color: white; font-size: 24px; cursor: pointer;
         }
         .map-container { flex: 1; position: relative; }
         #map { height: 100%; width: 100%; }
@@ -49,8 +52,9 @@
             background: rgba(15, 23, 42, 0.85); color: white; border-radius: 12px;
             padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             display: flex; justify-content: space-between; align-items: center;
-            font-size: 14px;
+            font-size: 14px; transition: transform 0.3s ease;
         }
+        .overlay-card.hidden { transform: translateY(-120%); }
         .range {
             display: flex; flex-direction: column; align-items: center; gap: 4px;
         }
@@ -59,20 +63,22 @@
         }
         .range-1000 { background: #f97316; }
         .range-5000 { background: #dc2626; }
-        .btn {
+        .fab {
             position: absolute; z-index: 1000;
             width: 56px; height: 56px; border-radius: 50%;
             border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             display: flex; align-items: center; justify-content: center;
-            font-size: 20px; color: white;
+            font-size: 24px; color: white;
+            transition: transform 0.2s;
         }
-        .btn-gps { bottom: 32px; right: 16px; background: var(--navy); }
-        .btn-check { bottom: 32px; left: 16px; background: var(--success); }
+        .fab:active { transform: scale(0.95); }
+        .fab-gps { bottom: 32px; right: 16px; background: var(--navy); }
+        .fab-check { bottom: 32px; left: 16px; background: var(--success); }
         .verdict {
             position: absolute; bottom: 16px; left: 16px; right: 16px;
             background: rgba(15, 23, 42, 0.9); color: white; border-radius: 12px; padding: 16px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3); z-index: 5;
-            border-left: 4px solid;
+            border-left: 4px solid; display: none;
         }
         .legal { border-color: var(--success); }
         .warning { border-color: var(--warning); }
@@ -85,6 +91,7 @@
 <body>
     <div class="app">
         <div class="header">
+            <button class="menu-btn" onclick="toggleLegend()">☰</button>
             <div class="logo">Washoe Safe Shot</div>
             <div class="badge">WCSO</div>
         </div>
@@ -93,7 +100,7 @@
             <div id="map"></div>
             <div id="status">Ready</div>
 
-            <div class="overlay-card">
+            <div id="overlay-card" class="overlay-card">
                 <div class="range">
                     <div class="range-line range-1000"></div>
                     <div>1,000 ft</div>
@@ -106,10 +113,10 @@
                 </div>
             </div>
 
-            <button class="btn btn-gps" onclick="getLocation()" title="Recenter GPS">Recenter</button>
-            <button class="btn btn-check" onclick="checkLegality()" title="Check Legality">Check</button>
+            <button class="fab fab-gps" onclick="getLocation()" title="Recenter GPS">Recenter</button>
+            <button class="fab fab-check" onclick="checkLegality()" title="Check Legality">Check</button>
 
-            <div id="verdict" class="verdict" style="display:none;"></div>
+            <div id="verdict" class="verdict"></div>
         </div>
     </div>
 
@@ -118,10 +125,11 @@
         let map, userLat, userLon, buildings = [], userMarker, circle1000, circle5000;
 
         function initMap() {
-            map = L.map('map').setView([39.72009, -119.92786], 15);
+            map = L.map('map', { zoomControl: false }).setView([39.72009, -119.92786], 15);
             L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
                 attribution: '© Esri'
             }).addTo(map);
+            L.control.scale().addTo(map);
         }
 
         function getLocation() {
@@ -159,6 +167,11 @@
             circle5000 = L.circle([userLat, userLon], {
                 radius: 1524, color: '#dc2626', fillOpacity: 0.05, weight: 2
             }).addTo(map).bindPopup('5,000 ft minimum (Rifles/Pistols)');
+        }
+
+        function toggleLegend() {
+            const card = document.getElementById('overlay-card');
+            card.classList.toggle('hidden');
         }
 
         async function checkLegality() {
@@ -224,7 +237,7 @@
         }
 
         initMap();
-        getLocation(); // Auto-get GPS on load
+        getLocation(); // Auto-get GPS
     </script>
 </body>
 </html>
