@@ -3,106 +3,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Washoe Safe Shot</title>
+    <title>Washoe Safe Shot | WCSO Safety Tool</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #1e40af;
+            --wsco-blue: #003366;
+            --wsco-gold: #FFD700;
             --success: #10b981;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --dark: #1f2937;
-            --light: #f9fafb;
-            --gray: #6b7280;
+            --light: #f8fafc;
+            --dark: #1e293b;
+            --gray: #64748b;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Inter', -apple-system, sans-serif;
-            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            font-family: 'Inter', sans-serif;
+            background: #f1f5f9;
             color: var(--dark);
             line-height: 1.6;
             padding: 16px;
         }
-        .container { max-width: 480px; margin: 0 auto; }
-        header { text-align: center; margin-bottom: 24px; }
-        h1 { font-size: 28px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
-        .tagline { font-size: 14px; color: var(--gray); margin-bottom: 16px; }
-        .code-link { color: var(--primary); text-decoration: none; font-weight: 500; }
-        .rules {
-            background: white; border-radius: 12px; padding: 16px; margin: 16px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 14px;
+        .container { max-width: 480px; margin: 0 auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        header {
+            background: var(--wsco-blue);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative;
         }
-        .rules h3 { font-size: 16px; margin-bottom: 8px; color: var(--dark); }
-        .rules ul { text-align: left; }
-        .rules li { margin: 6px 0; }
+        header::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><path d="M0,10 Q25,0 50,10 T100,10" fill="none" stroke="%23FFD700" stroke-width="2"/></svg>') center bottom no-repeat;
+            background-size: 100% 10px;
+            opacity: 0.2;
+        }
+        h1 { font-size: 24px; font-weight: 700; margin: 0; position: relative; z-index: 1; }
+        .tagline { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .badge { 
+            display: inline-block; background: var(--wsco-gold); color: var(--wsco-blue); 
+            padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; margin-top: 8px;
+        }
+        .content { padding: 20px; }
+        .section { margin-bottom: 20px; }
+        .section h3 { font-size: 16px; color: var(--wsco-blue); margin-bottom: 10: 8px; font-weight: 600; }
         .btn {
             width: 100%; padding: 16px; border: none; border-radius: 12px;
             font-size: 16px; font-weight: 600; cursor: pointer;
-            transition: all 0.2s; margin: 12px 0;
+            transition: all 0.2s; margin: 8px 0;
             display: flex; align-items: center; justify-content: center; gap: 8px;
         }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .btn-primary { background: var(--wsco-blue); color: white; }
+        .btn-primary:hover { background: #002855; }
         .btn-check { background: var(--success); color: white; }
         .btn-check:hover { background: #059669; }
-        #status { text-align: center; margin: 12px 0; font-weight: 500; }
-        #map { height: 50vh; border-radius: 12px; margin: 20px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        #status { text-align: center; margin: 12px 0; font-weight: 500; color: var(--gray); }
+        #map { height: 50vh; border-radius: 12px; margin: 16px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .legend {
+            display: flex; justify-content: center; gap: 16px; margin: 12px 0; font-size: 13px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .circle { width: 12px; height: 12px; border-radius: 50%; }
+        .circle-1000 { background: #f97316; opacity: 0.6; }
+        .circle-5000 { background: #dc2626; opacity: 0.4; }
         .verdict {
             padding: 16px; border-radius: 12px; margin: 16px 0;
             font-weight: 600; text-align: center; animation: fadeIn 0.5s;
+            border: 1px solid;
         }
-        .legal { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
-        .warning { background: #fffbeb; color: #92400e; border: 1px solid #fde68a; }
-        .illegal { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-        .metric { font-size: 18px; font-weight: 700; margin: 8px 0; }
+        .legal { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+        .warning { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+        .illegal { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+        .metric { font-size: 20px; font-weight: 700; margin: 8px 0; }
+        .disclaimer { font-size: 12px; color: var(--gray); text-align: center; margin-top: 16px; }
+        footer { text-align: center; margin: 24px 0 16px; font-size: 12px; color: var(--gray); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        footer { text-align: center; margin-top: 32px; font-size: 12px; color: var(--gray); }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <h1>🎯 Washoe Safe Shot</h1>
-            <p class="tagline">USMC Vet Project • Built with Grok xAI</p>
-            <p><a href="https://www.washoecounty.gov/clerks/cco/code/Chapter050.pdf" target="_blank" class="code-link">Washoe County Code 50</a></p>
+            <p class="tagline">Official-Style Safety Tool</p>
+            <div class="badge">USMC Vet Project • Grok xAI</div>
         </header>
 
-        <div class="rules">
-            <h3>📋 Shooting Rules</h3>
-            <ul>
-                <li><strong>Rifles/Pistols:</strong> >5,000 ft from dwellings</li>
-                <li><strong>Shotguns/BB/Air:</strong> >1,000 ft from dwellings</li>
-                <li><strong>NO:</strong> Congested areas, roads, parks</li>
-                <li><strong>Report:</strong> 775-785-9276</li>
-            </ul>
-            <p><a href="https://www.washoesheriff.com" target="_blank">Sheriff's Page</a></p>
+        <div class="content">
+            <div class="section">
+                <h3>📋 Shooting Rules</h3>
+                <ul style="text-align:left; font-size:14px;">
+                    <li><strong>Rifles/Pistols:</strong> >5,000 ft from dwellings</li>
+                    <li><strong>Shotguns/BB/Air:</strong> >1,000 ft from dwellings</li>
+                    <li><strong>NO:</strong> Congested areas, roads, parks</li>
+                    <li><strong>Report:</strong> 775-785-9276</li>
+                </ul>
+                <p style="text-align:center; margin-top:8px;">
+                    <a href="https://www.washoesheriff.com" target="_blank" style="color:var(--wsco-blue); font-weight:500; text-decoration:none;">Sheriff's Page →</a>
+                </p>
+            </div>
+
+            <p id="status">Tap below to get your GPS location</p>
+            <button class="btn btn-primary" onclick="getLocation()">📍 Get My GPS Location</button>
+
+            <div id="map"></div>
+
+            <div class="legend">
+                <div class="legend-item"><div class="circle circle-1000"></div> 1,000 ft</div>
+                <div class="legend-item"><div class="circle circle-5000"></div> 5,000 ft</div>
+            </div>
+
+            <button class="btn btn-check" onclick="checkLegality()">🎯 Check Legality</button>
+            <div id="verdict"></div>
+
+            <p class="disclaimer">⚠️ Informational only • Not legal advice • Always verify on-site</p>
         </div>
 
-        <p id="status">Tap below to get your GPS location</p>
-        <button class="btn btn-primary" onclick="getLocation()">📍 Get My GPS Location</button>
-
-        <div id="map"></div>
-
-        <button class="btn btn-check" onclick="checkLegality()">🎯 Check Legality</button>
-        <div id="verdict"></div>
-
         <footer>
-            <p>Built for safety • Not legal advice • Always verify on-site</p>
+            <p>Built for Washoe County Safety • <a href="mailto:your.email@example.com" style="color:var(--wsco-blue);">Contact</a></p>
         </footer>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        let map, userLat, userLon, buildings = [];
+        let map, userLat, userLon, buildings = [], userMarker, circle1000, circle5000;
 
         function initMap() {
             map = L.map('map').setView([39.72009, -119.92786], 16);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap'
             }).addTo(map);
-            L.marker([39.72009, -119.92786]).addTo(map).bindPopup('Default Location');
         }
 
         function getLocation() {
@@ -114,8 +146,7 @@
                         userLat = pos.coords.latitude;
                         userLon = pos.coords.longitude;
                         status.innerHTML = `GPS Locked: ${userLat.toFixed(5)}°, ${userLon.toFixed(5)}°`;
-                        map.setView([userLat, userLon], 16);
-                        L.marker([userLat, userLon]).addTo(map).bindPopup('You are here').openPopup();
+                        updateMap();
                     },
                     err => status.innerHTML = 'GPS Error: ' + err.message,
                     {enableHighAccuracy: true, timeout: 15000}
@@ -123,6 +154,29 @@
             } else {
                 status.innerHTML = 'GPS not supported';
             }
+        }
+
+        function updateMap() {
+            map.setView([userLat, userLon], 16);
+
+            // Remove old
+            if (userMarker) map.removeLayer(userMarker);
+            if (circle1000) map.removeLayer(circle1000);
+            if (circle5000) map.removeLayer(circle5000);
+
+            // Add user
+            userMarker = L.marker([userLat, userLon], {
+                icon: L.divIcon({className: 'user-pin', html: '📍', iconSize: [30, 30]})
+            }).addTo(map).bindPopup('You are here').openPopup();
+
+            // Add circles
+            circle1000 = L.circle([userLat, userLon], {
+                radius: 304.8, color: '#f97316', fillColor: '#f97316', fillOpacity: 0.1, weight: 2
+            }).addTo(map).bindPopup('1,000 ft minimum (Shotguns/BB/Air)');
+
+            circle5000 = L.circle([userLat, userLon], {
+                radius: 1524, color: '#dc2626', fillColor: '#dc2626', fillOpacity: 0.05, weight: 2
+            }).addTo(map).bindPopup('5,000 ft minimum (Rifles/Pistols)');
         }
 
         async function checkLegality() {
@@ -155,9 +209,10 @@
                 });
 
                 // Show buildings
-                map.eachLayer(l => { if (l instanceof L.Marker && l.getPopup()?.getContent()?.includes('Building')) map.removeLayer(l); });
+                map.eachLayer(l => { if (l instanceof L.CircleMarker) map.removeLayer(l); });
                 buildings.slice(0, 15).forEach(b => {
-                    L.circleMarker([b.lat, b.lon], {radius: 6, color: '#dc2626'}).addTo(map)
+                    L.circleMarker([b.lat, b.lon], {radius: 6, color: '#dc2626', fillOpacity: 0.8})
+                        .addTo(map)
                         .bindPopup(`Building: ${Math.round(b.dist)} ft`);
                 });
 
